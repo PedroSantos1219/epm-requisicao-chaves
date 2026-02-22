@@ -1,0 +1,6 @@
+# Credenciais
+config.php
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
