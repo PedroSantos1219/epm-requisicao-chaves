@@ -1,0 +1,8 @@
+# Bloquear acesso direto a ficheiros sensíveis
+<FilesMatch "\.(sqlite|log|txt)$">
+    Require all denied
+</FilesMatch>
+
+<Files "config.php">
+    Require all denied
+</Files>
