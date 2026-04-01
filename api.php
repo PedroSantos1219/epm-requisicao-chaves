@@ -81,10 +81,48 @@ function requireAdmin() {
     }
 }
 
+function actionLoginAdmin(array $data) {
+    if (empty($data['email']) || empty($data['password'])) {
+        errorResponse('Email e senha são obrigatórios para login.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT id, password_hash, email FROM admin WHERE email = :email');
+    $stmt->execute([':email' => $data['email']]);
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$admin || !password_verify($data['password'], $admin['password_hash'])) {
+        errorResponse('Credenciais inválidas.', 401);
+    }
+
+    $_SESSION['admin_logged_in'] = true;
+    $_SESSION['admin_email'] = $admin['email'];
+    respond(['success' => true, 'email' => $admin['email']]);
+}
+
+function actionCheckAdmin() {
+    $isAdmin = !empty($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
+    respond(['success' => true, 'isAdmin' => $isAdmin, 'email' => $_SESSION['admin_email'] ?? null]);
+}
+
+function actionLogoutAdmin() {
+    unset($_SESSION['admin_logged_in'], $_SESSION['admin_email']);
+    respond(['success' => true]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
 switch ($action) {
+    case 'loginAdmin':
+        actionLoginAdmin($data);
+        break;
+    case 'checkAdmin':
+        actionCheckAdmin();
+        break;
+    case 'logoutAdmin':
+        actionLogoutAdmin();
+        break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
 }
