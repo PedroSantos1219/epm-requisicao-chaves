@@ -67,6 +67,14 @@ function initializeDatabase(PDO $pdo) {
         created_at TEXT NOT NULL
     )");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        turma TEXT,
+        created_at TEXT NOT NULL
+    )");
+
     $stmt = $pdo->prepare('INSERT INTO admin (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)');
     $stmt->execute([
         ':email' => DEFAULT_ADMIN_EMAIL,
@@ -110,6 +118,42 @@ function actionLogoutAdmin() {
     respond(['success' => true]);
 }
 
+function actionListUsers(array $data) {
+    $pdo = getPDO();
+    if (!empty($data['tipo'])) {
+        $stmt = $pdo->prepare('SELECT id, nome, tipo, turma FROM users WHERE tipo = :tipo ORDER BY nome');
+        $stmt->execute([':tipo' => $data['tipo']]);
+    } else {
+        $stmt = $pdo->query('SELECT id, nome, tipo, turma FROM users ORDER BY tipo, nome');
+    }
+    respond(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+function actionAddUser(array $data) {
+    requireAdmin();
+    if (empty($data['nome']) || empty($data['tipo'])) {
+        errorResponse('Nome e tipo são obrigatórios para adicionar um Utilizador.');
+    }
+
+    $nome = trim($data['nome']);
+    $tipo = strtoupper(trim($data['tipo'])) === 'COLABORADOR' ? 'COLABORADOR' : 'ALUNO';
+    $turma = isset($data['turma']) ? trim($data['turma']) : null;
+
+    if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
+    if ($turma && mb_strlen($turma) > 50) errorResponse('Turma demasiado longa (máx 50 caracteres).');
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('INSERT INTO users (nome, tipo, turma, created_at) VALUES (:nome, :tipo, :turma, :created_at)');
+    $stmt->execute([
+        ':nome' => $nome,
+        ':tipo' => $tipo,
+        ':turma' => $turma,
+        ':created_at' => date('c')
+    ]);
+
+    respond(['success' => true, 'user_id' => (int)$pdo->lastInsertId()]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -122,6 +166,12 @@ switch ($action) {
         break;
     case 'logoutAdmin':
         actionLogoutAdmin();
+        break;
+    case 'listUsers':
+        actionListUsers($data);
+        break;
+    case 'addUser':
+        actionAddUser($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
