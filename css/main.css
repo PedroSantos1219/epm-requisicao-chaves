@@ -1,0 +1,268 @@
+* { box-sizing: border-box; }
+
+/* ── Layout geral (sticky footer) ─────────────────────────── */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f6f6;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Barra superior ───────────────────────────────────────── */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.topbar-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  gap: 12px;
+}
+
+/* ── Barra de ferramentas admin ───────────────────────────── */
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #e6e6e6;
+  flex-wrap: wrap;
+}
+
+/* Logo */
+.logo-img {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.brand {
+  font-weight: 900;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Grupo de botões tipo utilizador */
+.nav-user-select {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eee;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ── Conteúdo principal ───────────────────────────────────── */
+main {
+  padding: 18px 0;
+  flex: 1;
+}
+
+.actions {
+  margin: 12px 0 18px;
+}
+
+select,
+input,
+button {
+  font: inherit;
+}
+
+/* ── Cartões ──────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* ── Tabela ───────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table th,
+.table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.table thead th {
+  background: #f7f7f7;
+  font-weight: 900;
+}
+
+/* ── Textos auxiliares ────────────────────────────────────── */
+.muted {
+  color: #666;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.ip-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+
+/* ── Mensagens ────────────────────────────────────────────── */
+.success {
+  background: #e9ffe9;
+  border: 1px solid #b7f5b7;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.error {
+  background: #ffe9e9;
+  border: 1px solid #f5b7b7;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+/* ── Formulário ───────────────────────────────────────────── */
+form label {
+  display: block;
+  margin: 10px 0 6px;
+  font-weight: 900;
+}
+
+.admin-login-main form button[type="submit"]:not(.btn),
+.card form button[type="submit"]:not(.btn) {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #111;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* ── Elementos reutilizáveis ──────────────────────────────── */
+
+.range-select {
+  width: auto;
+}
+.admin-scroll {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.admin-backups-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.admin-login-main {
+  max-width: 480px;
+  margin-top: 40px;
+}
+
+/* ── Rodapé (sticky ao fundo) ─────────────────────────────── */
+.footer {
+  margin-top: auto;
+  padding: 18px 0;
+  text-align: center;
+  border-top: 1px solid #e6e6e6;
+  background: #fff;
+  color: #666;
+  font-size: 12px;
+}
+
+.footer a {
+  color: #198754;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+
+/* ── Banner de Cookies ────────────────────────────────────── */
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #222;
+  color: #eee;
+  padding: 14px 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.cookie-banner a {
+  color: #7fdb8a;
+  text-decoration: underline;
+}
+
+.cookie-banner .btn {
+  white-space: nowrap;
+}
+
+.info-text {
+  font-size: 14px;
+}
+
+
+/* ── Botão QR Code (navbar) ───────────────────────────────── */
+.btn-qr-nav {
+  display: flex;
+  align-items: center;
+  color: #198754;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.btn-qr-nav:hover {
+  opacity: 1;
+}
+
