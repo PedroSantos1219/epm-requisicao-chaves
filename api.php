@@ -75,6 +75,13 @@ function initializeDatabase(PDO $pdo) {
         created_at TEXT NOT NULL
     )");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS chaves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT NOT NULL,
+        nome TEXT NOT NULL,
+        restricao TEXT NOT NULL
+    )");
+
     $stmt = $pdo->prepare('INSERT INTO admin (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)');
     $stmt->execute([
         ':email' => DEFAULT_ADMIN_EMAIL,
@@ -205,6 +212,51 @@ function actionDeleteUser(array $data) {
     respond(['success' => true]);
 }
 
+function actionListChaves() {
+    $pdo = getPDO();
+    $stmt = $pdo->query('SELECT id, codigo, nome, restricao FROM chaves ORDER BY codigo');
+    respond(['success' => true, 'chaves' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+function actionAddChave(array $data) {
+    requireAdmin();
+    if (empty($data['codigo']) || empty($data['nome']) || empty($data['restricao'])) {
+        errorResponse('Código, nome e restrição são obrigatórios para adicionar uma chave.');
+    }
+
+    $codigo = trim($data['codigo']);
+    $nome = trim($data['nome']);
+    $restricao = strtoupper(trim($data['restricao']));
+
+    if (mb_strlen($codigo) > 50) errorResponse('Código demasiado longo (máx 50 caracteres).');
+    if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
+    if (!in_array($restricao, ['ALUNO', 'COLABORADOR'], true)) {
+        errorResponse('Restrição deve ser ALUNO ou COLABORADOR.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('INSERT INTO chaves (codigo, nome, restricao) VALUES (:codigo, :nome, :restricao)');
+    $stmt->execute([
+        ':codigo' => $codigo,
+        ':nome' => $nome,
+        ':restricao' => $restricao
+    ]);
+
+    respond(['success' => true, 'chave_id' => (int)$pdo->lastInsertId()]);
+}
+
+function actionDeleteChave(array $data) {
+    requireAdmin();
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID da chave inválido.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('DELETE FROM chaves WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    respond(['success' => true]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -229,6 +281,15 @@ switch ($action) {
         break;
     case 'deleteUser':
         actionDeleteUser($data);
+        break;
+    case 'listChaves':
+        actionListChaves();
+        break;
+    case 'addChave':
+        actionAddChave($data);
+        break;
+    case 'deleteChave':
+        actionDeleteChave($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
