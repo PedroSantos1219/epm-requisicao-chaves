@@ -154,6 +154,57 @@ function actionAddUser(array $data) {
     respond(['success' => true, 'user_id' => (int)$pdo->lastInsertId()]);
 }
 
+function actionEditUser(array $data) {
+    requireAdmin();
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID do utilizador inválido.');
+    }
+    if (empty($data['nome'])) {
+        errorResponse('Nome é obrigatório.');
+    }
+
+    $nome = trim($data['nome']);
+    $turma = isset($data['turma']) ? trim($data['turma']) : null;
+
+    if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
+    if ($turma && mb_strlen($turma) > 50) errorResponse('Turma demasiado longa (máx 50 caracteres).');
+
+    $pdo = getPDO();
+
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    if (!$stmt->fetch()) {
+        errorResponse('Utilizador não encontrado.');
+    }
+
+    $stmt = $pdo->prepare('UPDATE users SET nome = :nome, turma = :turma WHERE id = :id');
+    $stmt->execute([
+        ':nome' => $nome,
+        ':turma' => $turma,
+        ':id' => (int)$data['id']
+    ]);
+    respond(['success' => true]);
+}
+
+function actionDeleteUser(array $data) {
+    requireAdmin();
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID do utilizador inválido.');
+    }
+
+    $pdo = getPDO();
+
+    $stmt = $pdo->prepare('SELECT tipo FROM users WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+        errorResponse('Utilizador não encontrado.');
+    }
+
+    $stmt = $pdo->prepare('DELETE FROM users WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    respond(['success' => true]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -172,6 +223,12 @@ switch ($action) {
         break;
     case 'addUser':
         actionAddUser($data);
+        break;
+    case 'editUser':
+        actionEditUser($data);
+        break;
+    case 'deleteUser':
+        actionDeleteUser($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
