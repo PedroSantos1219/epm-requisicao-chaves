@@ -1,0 +1,246 @@
+/* ══════════════════════════════════════════════════════════════
+   Responsivo — funcional em PC e telemóvel
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Touch targets mínimos (44px para iOS/Android) ────────── */
+@media (pointer: coarse) {
+  .btn,
+  .form-control,
+  .form-select {
+    min-height: 44px;
+  }
+}
+
+/* ── Telemóveis (até 576px) ──────────────────────────────── */
+@media (max-width: 576px) {
+  /* Header */
+  .topbar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .brand {
+    font-size: 17px;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .logo-img {
+    height: 30px;
+    width: 30px;
+  }
+
+  /* Navegação: compacta no telemóvel */
+  .nav {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .nav-user-select {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .nav-user-select .btn {
+    flex: 1 1 0;
+    width: auto;
+    padding: 10px 8px;
+    font-size: 14px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+
+  .nav .btn {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .nav .badge {
+    text-align: center;
+    align-self: center;
+  }
+
+  .nav .range-select {
+    width: 100% !important;
+  }
+
+  /* Toolbar admin empilhada */
+  .admin-toolbar {
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .admin-toolbar .btn,
+  .admin-toolbar .form-select {
+    width: 100%;
+  }
+
+  /* Conteúdo */
+  main.container {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .actions .btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  .card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  /* Tabela: esconder Tipo, Retirada e Status em telemóvel */
+  .table th:nth-child(2),
+  .table td:nth-child(2),
+  .table th:nth-child(4),
+  .table td:nth-child(4),
+  .table th:nth-child(5),
+  .table td:nth-child(5) {
+    display: none;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 4px;
+    font-size: 13px;
+  }
+
+  .table .btn-sm {
+    font-size: 12px;
+    padding: 6px 10px;
+    min-height: 36px;
+  }
+
+  /* Formulário */
+  form .form-control,
+  form .form-select {
+    font-size: 16px; /* evita zoom automático no iOS */
+    padding: 12px;
+  }
+
+  form button[type="submit"] {
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  /* Admin login */
+  .admin-login-main {
+    max-width: 100%;
+    margin-top: 16px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* Cookie banner */
+  .cookie-banner {
+    flex-direction: column;
+    text-align: center;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  /* Footer */
+  .footer {
+    padding: 12px 0;
+  }
+}
+
+/* ── Tablets (577px–820px) ───────────────────────────────── */
+@media (min-width: 577px) and (max-width: 820px) {
+  .topbar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .brand {
+    font-size: 22px;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .admin-toolbar {
+    padding: 8px 0;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px 8px;
+  }
+
+  /* Esconder apenas coluna Tipo */
+  .table th:nth-child(2),
+  .table td:nth-child(2) {
+    display: none;
+  }
+
+  .form-control,
+  .form-select,
+  .btn {
+    font-size: 15px;
+  }
+
+  .admin-login-main {
+    max-width: 100%;
+    margin-top: 24px;
+  }
+}
+
+/* ── Desktop (> 820px) ───────────────────────────────────── */
+@media (min-width: 821px) {
+  /* Tabela mostra todas as colunas no PC */
+  .table th,
+  .table td {
+    padding: 12px 14px;
+  }
+
+  /* Formulários centrados no PC */
+  .admin-login-main {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Botões hover suave */
+  .btn:hover {
+    opacity: 0.85;
+    transition: opacity 0.15s;
+  }
+}
+
+/* ── Impressão ───────────────────────────────────────────── */
+@media print {
+  .topbar,
+  .footer,
+  .actions,
+  .offcanvas {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+  }
+}
