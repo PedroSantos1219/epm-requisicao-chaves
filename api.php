@@ -324,6 +324,43 @@ function actionCreateRequisicao(array $data) {
     respond(['success' => true, 'requisicao_id' => $pdo->lastInsertId()]);
 }
 
+function actionDevolverRequisicao(array $data) {
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID da requisição inválido.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT estado FROM requisicoes WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    $req = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$req || $req['estado'] !== 'ATIVA') {
+        errorResponse('Requisição não encontrada ou já devolvida.');
+    }
+
+    $stmt = $pdo->prepare('UPDATE requisicoes SET fim = :fim, estado = "DEVOLVIDA" WHERE id = :id');
+    $stmt->execute([':fim' => date('c'), ':id' => (int)$data['id']]);
+    respond(['success' => true]);
+}
+
+function actionAdminDevolverRequisicao(array $data) {
+    requireAdmin();
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID da requisição inválido.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT estado FROM requisicoes WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['id']]);
+    $req = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$req || $req['estado'] !== 'ATIVA') {
+        errorResponse('Requisição não encontrada ou já devolvida.');
+    }
+
+    $stmt = $pdo->prepare('UPDATE requisicoes SET fim = :fim, estado = "DEVOLVIDA" WHERE id = :id');
+    $stmt->execute([':fim' => date('c'), ':id' => (int)$data['id']]);
+    respond(['success' => true]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -363,6 +400,12 @@ switch ($action) {
         break;
     case 'createRequisicao':
         actionCreateRequisicao($data);
+        break;
+    case 'devolverRequisicao':
+        actionDevolverRequisicao($data);
+        break;
+    case 'adminDevolverRequisicao':
+        actionAdminDevolverRequisicao($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
