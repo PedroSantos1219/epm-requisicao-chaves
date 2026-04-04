@@ -282,6 +282,48 @@ function actionListRequisicoes(array $data) {
     respond(['success' => true, 'requisicoes' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
+function actionCreateRequisicao(array $data) {
+    if (empty($data['user_id']) || empty($data['chave_id'])) {
+        errorResponse('Utilizador e chave são obrigatórios para criar a requisição.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT id, tipo, turma FROM users WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['user_id']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user) {
+        errorResponse('Utilizador não encontrado.');
+    }
+
+    $stmt = $pdo->prepare('SELECT id, codigo, nome, restricao FROM chaves WHERE id = :id');
+    $stmt->execute([':id' => (int)$data['chave_id']]);
+    $chave = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$chave) {
+        errorResponse('Chave não encontrada.');
+    }
+
+    if ($chave['restricao'] !== $user['tipo']) {
+        errorResponse('Esta chave não pertence ao tipo de utilizador selecionado.');
+    }
+
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM requisicoes WHERE chave_id = :chave_id AND estado = "ATIVA"');
+    $stmt->execute([':chave_id' => (int)$data['chave_id']]);
+    if ($stmt->fetchColumn() > 0) {
+        errorResponse('A chave já está em utilização.');
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, created_at)
+        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", :created_at)');
+    $stmt->execute([
+        ':user_id' => (int)$data['user_id'],
+        ':chave_id' => (int)$data['chave_id'],
+        ':inicio' => date('c'),
+        ':created_at' => date('c')
+    ]);
+
+    respond(['success' => true, 'requisicao_id' => $pdo->lastInsertId()]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -318,6 +360,9 @@ switch ($action) {
         break;
     case 'listRequisicoes':
         actionListRequisicoes($data);
+        break;
+    case 'createRequisicao':
+        actionCreateRequisicao($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
