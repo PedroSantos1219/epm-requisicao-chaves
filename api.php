@@ -82,6 +82,18 @@ function initializeDatabase(PDO $pdo) {
         restricao TEXT NOT NULL
     )");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS requisicoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        chave_id INTEGER NOT NULL,
+        inicio TEXT NOT NULL,
+        fim TEXT,
+        estado TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(chave_id) REFERENCES chaves(id) ON DELETE CASCADE
+    )");
+
     $stmt = $pdo->prepare('INSERT INTO admin (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)');
     $stmt->execute([
         ':email' => DEFAULT_ADMIN_EMAIL,
@@ -257,6 +269,19 @@ function actionDeleteChave(array $data) {
     respond(['success' => true]);
 }
 
+function actionListRequisicoes(array $data) {
+    $pdo = getPDO();
+    $sql = "SELECT req.id, req.user_id, req.chave_id, req.inicio, req.fim, req.estado,
+            u.nome AS user_nome, u.tipo AS user_tipo, u.turma AS user_turma,
+            c.codigo AS chave_codigo, c.nome AS chave_nome
+            FROM requisicoes req
+            LEFT JOIN users u ON u.id = req.user_id
+            LEFT JOIN chaves c ON c.id = req.chave_id
+            ORDER BY datetime(req.inicio) DESC";
+    $stmt = $pdo->query($sql);
+    respond(['success' => true, 'requisicoes' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -290,6 +315,9 @@ switch ($action) {
         break;
     case 'deleteChave':
         actionDeleteChave($data);
+        break;
+    case 'listRequisicoes':
+        actionListRequisicoes($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
