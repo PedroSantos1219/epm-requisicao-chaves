@@ -56,7 +56,24 @@ function getPDO() {
         initializeDatabase($pdo);
     }
 
+    cleanupOldRequisicoes($pdo);
     return $pdo;
+}
+
+function cleanupOldRequisicoes(PDO $pdo) {
+    $stmt = $pdo->prepare("DELETE FROM requisicoes WHERE datetime(inicio) < datetime('now', '-100 days')");
+    $stmt->execute();
+}
+
+function getRangeCondition(string $range): array {
+    switch ($range) {
+        case '24h': return ['sql' => "datetime(inicio) >= datetime('now', '-24 hours')", 'params' => []];
+        case '7d': return ['sql' => "datetime(inicio) >= datetime('now', '-7 days')", 'params' => []];
+        case '15d': return ['sql' => "datetime(inicio) >= datetime('now', '-15 days')", 'params' => []];
+        case '30d': return ['sql' => "datetime(inicio) >= datetime('now', '-30 days')", 'params' => []];
+        case '100d': return ['sql' => "datetime(inicio) >= datetime('now', '-100 days')", 'params' => []];
+        default: return ['sql' => "datetime(inicio) >= datetime('now', '-30 days')", 'params' => []];
+    }
 }
 
 function initializeDatabase(PDO $pdo) {
@@ -271,14 +288,18 @@ function actionDeleteChave(array $data) {
 
 function actionListRequisicoes(array $data) {
     $pdo = getPDO();
+    $range = $data['range'] ?? '24h';
+    $rangeCond = getRangeCondition($range);
     $sql = "SELECT req.id, req.user_id, req.chave_id, req.inicio, req.fim, req.estado,
             u.nome AS user_nome, u.tipo AS user_tipo, u.turma AS user_turma,
             c.codigo AS chave_codigo, c.nome AS chave_nome
             FROM requisicoes req
             LEFT JOIN users u ON u.id = req.user_id
             LEFT JOIN chaves c ON c.id = req.chave_id
+            WHERE {$rangeCond['sql']}
             ORDER BY datetime(req.inicio) DESC";
-    $stmt = $pdo->query($sql);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($rangeCond['params']);
     respond(['success' => true, 'requisicoes' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
