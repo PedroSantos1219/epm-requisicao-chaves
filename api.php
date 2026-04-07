@@ -382,6 +382,34 @@ function actionAdminDevolverRequisicao(array $data) {
     respond(['success' => true]);
 }
 
+function actionUpdateAdmin(array $data) {
+    requireAdmin();
+
+    if (empty($data['email']) && empty($data['password'])) {
+        errorResponse('Email ou senha obrigatórios para atualizar o administrador.');
+    }
+
+    $pdo = getPDO();
+    $updateFields = [];
+    $params = [];
+
+    if (!empty($data['email'])) {
+        $updateFields[] = 'email = :email';
+        $params[':email'] = trim($data['email']);
+    }
+    if (!empty($data['password'])) {
+        $updateFields[] = 'password_hash = :password_hash';
+        $params[':password_hash'] = password_hash(trim($data['password']), PASSWORD_DEFAULT);
+    }
+    $params[':id'] = 1;
+
+    $sql = 'UPDATE admin SET ' . implode(', ', $updateFields) . ' WHERE id = :id';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    respond(['success' => true]);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -427,6 +455,9 @@ switch ($action) {
         break;
     case 'adminDevolverRequisicao':
         actionAdminDevolverRequisicao($data);
+        break;
+    case 'updateAdmin':
+        actionUpdateAdmin($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
