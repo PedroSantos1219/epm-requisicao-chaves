@@ -65,6 +65,29 @@ function cleanupOldRequisicoes(PDO $pdo) {
     $stmt->execute();
 }
 
+function normalizePersonName(string $name): string {
+    $normalized = trim($name);
+    $normalized = preg_replace('/\s+/u', '', $normalized);
+    $normalized = mb_strtolower($normalized, 'UTF-8');
+
+    // Remover acentos para comparação tolerante (ex: "Sántos" == "santos")
+    $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
+    if ($transliterated !== false) {
+        $normalized = strtolower($transliterated);
+    } else {
+        $normalized = strtr($normalized, [
+            'á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+            'ç' => 'c', 'ñ' => 'n'
+        ]);
+    }
+
+    return preg_replace('/[^a-z0-9]/', '', $normalized);
+}
+
 function getRangeCondition(string $range): array {
     switch ($range) {
         case '24h': return ['sql' => "datetime(inicio) >= datetime('now', '-24 hours')", 'params' => []];
@@ -390,13 +413,21 @@ function actionCreateRequisicaoAluno(array $data) {
     $nome = trim($data['nome']);
     $pdo = getPDO();
 
-    $stmt = $pdo->prepare('SELECT id FROM users WHERE nome = :nome AND tipo = "ALUNO" LIMIT 1');
-    $stmt->execute([':nome' => $nome]);
-    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Procura o aluno pelo nome ignorando acentos, espaços e maiúsculas/minúsculas.
+    $normalizedInputName = normalizePersonName($nome);
+    $stmt = $pdo->prepare('SELECT id, nome FROM users WHERE tipo = "ALUNO"');
+    $stmt->execute();
+    $existing = null;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $userRow) {
+        if (normalizePersonName((string)$userRow['nome']) === $normalizedInputName) {
+            $existing = $userRow;
+            break;
+        }
+    }
+
     if (!$existing) {
         errorResponse('Utilizador não registado. Apenas alunos registados podem requisitar chaves.');
     }
-
     $userId = (int)$existing['id'];
     $chaveId = (int)$data['chave_id'];
 
