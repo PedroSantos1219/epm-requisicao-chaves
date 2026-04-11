@@ -382,6 +382,53 @@ function actionAdminDevolverRequisicao(array $data) {
     respond(['success' => true]);
 }
 
+function actionCreateRequisicaoAluno(array $data) {
+    if (empty($data['nome']) || empty($data['chave_id'])) {
+        errorResponse('Nome e chave são obrigatórios.');
+    }
+
+    $nome = trim($data['nome']);
+    $pdo = getPDO();
+
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE nome = :nome AND tipo = "ALUNO" LIMIT 1');
+    $stmt->execute([':nome' => $nome]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$existing) {
+        errorResponse('Utilizador não registado. Apenas alunos registados podem requisitar chaves.');
+    }
+
+    $userId = (int)$existing['id'];
+    $chaveId = (int)$data['chave_id'];
+
+    $stmt = $pdo->prepare('SELECT id, codigo, nome, restricao FROM chaves WHERE id = :id');
+    $stmt->execute([':id' => $chaveId]);
+    $chave = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$chave) {
+        errorResponse('Chave não encontrada.');
+    }
+
+    if ($chave['restricao'] !== 'ALUNO') {
+        errorResponse('Esta chave não está disponível para alunos.');
+    }
+
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM requisicoes WHERE chave_id = :chave_id AND estado = "ATIVA"');
+    $stmt->execute([':chave_id' => $chaveId]);
+    if ($stmt->fetchColumn() > 0) {
+        errorResponse('A chave já está em utilização.');
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, created_at)
+        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", :created_at)');
+    $stmt->execute([
+        ':user_id' => $userId,
+        ':chave_id' => $chaveId,
+        ':inicio' => date('c'),
+        ':created_at' => date('c')
+    ]);
+
+    respond(['success' => true, 'requisicao_id' => $pdo->lastInsertId()]);
+}
+
 function actionUpdateAdmin(array $data) {
     requireAdmin();
 
@@ -449,6 +496,9 @@ switch ($action) {
         break;
     case 'createRequisicao':
         actionCreateRequisicao($data);
+        break;
+    case 'createRequisicaoAluno':
+        actionCreateRequisicaoAluno($data);
         break;
     case 'devolverRequisicao':
         actionDevolverRequisicao($data);
