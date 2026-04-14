@@ -49,6 +49,15 @@ function getDatabasePath() {
     return $dir . '/database.sqlite';
 }
 
+function getSecurityLogPath() {
+    return __DIR__ . '/data/security-events.log';
+}
+
+function writeSecurityLog(string $message) {
+    $line = sprintf("[%s] %s\n", date('c'), $message);
+    file_put_contents(getSecurityLogPath(), $line, FILE_APPEND);
+}
+
 function getPDO() {
     static $pdo = null;
     if ($pdo !== null) {
@@ -170,6 +179,7 @@ function actionLoginAdmin(array $data) {
 
     if (time() < $lockUntil) {
         $wait = $lockUntil - time();
+        writeSecurityLog("LOGIN_BLOQUEADO | ip=$ip | espera={$wait}s");
         errorResponse("Demasiadas tentativas. Tente novamente em {$wait} segundos.", 429);
     }
 
@@ -184,6 +194,7 @@ function actionLoginAdmin(array $data) {
         if ($attempts >= 5) {
             $_SESSION[$key . '_lock'] = time() + 900; // 15 min
             $_SESSION[$key . '_count'] = 0;
+            writeSecurityLog("BRUTE_FORCE_LOCKOUT | ip=$ip | email=" . ($data['email'] ?? ''));
         }
         errorResponse('Credenciais inválidas.', 401);
     }
