@@ -162,15 +162,35 @@ function actionLoginAdmin(array $data) {
         errorResponse('Email e senha são obrigatórios para login.');
     }
 
+    // Proteção contra brute-force: máx 5 tentativas por 15 minutos
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $key = 'login_attempts_' . md5($ip);
+    $attempts = (int)($_SESSION[$key . '_count'] ?? 0);
+    $lockUntil = (int)($_SESSION[$key . '_lock'] ?? 0);
+
+    if (time() < $lockUntil) {
+        $wait = $lockUntil - time();
+        errorResponse("Demasiadas tentativas. Tente novamente em {$wait} segundos.", 429);
+    }
+
     $pdo = getPDO();
     $stmt = $pdo->prepare('SELECT id, password_hash, email FROM admin WHERE email = :email');
     $stmt->execute([':email' => $data['email']]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$admin || !password_verify($data['password'], $admin['password_hash'])) {
+        $attempts++;
+        $_SESSION[$key . '_count'] = $attempts;
+        if ($attempts >= 5) {
+            $_SESSION[$key . '_lock'] = time() + 900; // 15 min
+            $_SESSION[$key . '_count'] = 0;
+        }
         errorResponse('Credenciais inválidas.', 401);
     }
 
+    // Reset tentativas e regenerar sessão
+    unset($_SESSION[$key . '_count'], $_SESSION[$key . '_lock']);
+    session_regenerate_id(true);
     $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_email'] = $admin['email'];
     respond(['success' => true, 'email' => $admin['email']]);
