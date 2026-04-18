@@ -20,6 +20,12 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/vendor/phpmailer/Exception.php';
+require_once __DIR__ . '/vendor/phpmailer/PHPMailer.php';
+require_once __DIR__ . '/vendor/phpmailer/SMTP.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception as MailException;
 
 const DEFAULT_ADMIN_EMAIL = 'admin@escola.pt';
 
@@ -56,6 +62,39 @@ function getSecurityLogPath() {
 function writeSecurityLog(string $message) {
     $line = sprintf("[%s] %s\n", date('c'), $message);
     file_put_contents(getSecurityLogPath(), $line, FILE_APPEND);
+}
+
+function sendSecurityNotification(string $subject, string $message): bool {
+    if (empty(SMTP_PASS)) {
+        writeSecurityLog('EMAIL_IGNORADO (SMTP não configurado) | assunto=' . $subject);
+        return false;
+    }
+
+    try {
+        $mail = new PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host       = SMTP_HOST;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = SMTP_USER;
+        $mail->Password   = SMTP_PASS;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = SMTP_PORT;
+        $mail->CharSet    = 'UTF-8';
+
+        $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
+        $mail->addAddress(DEFAULT_ADMIN_EMAIL);
+
+        $mail->isHTML(false);
+        $mail->Subject = $subject;
+        $mail->Body    = $message;
+
+        $mail->send();
+        writeSecurityLog('EMAIL_ENVIADO | para=' . DEFAULT_ADMIN_EMAIL . ' | assunto=' . $subject);
+        return true;
+    } catch (MailException $e) {
+        writeSecurityLog('EMAIL_FALHOU | para=' . DEFAULT_ADMIN_EMAIL . ' | assunto=' . $subject . ' | erro=' . $e->getMessage());
+        return false;
+    }
 }
 
 function getPDO() {
@@ -250,7 +289,13 @@ function actionAddUser(array $data) {
         ':created_at' => date('c')
     ]);
 
-    respond(['success' => true, 'user_id' => (int)$pdo->lastInsertId()]);
+    $userId = (int)$pdo->lastInsertId();
+    $notificationSent = sendSecurityNotification(
+        'Novo utilizador adicionado',
+        'Foi adicionado um utilizador: ID=' . $userId . ', Nome=' . $nome . ', Tipo=' . $tipo . ', Turma/Disciplina=' . ($turma ?: '-')
+    );
+
+    respond(['success' => true, 'user_id' => $userId, 'notification_sent' => $notificationSent]);
 }
 
 function actionEditUser(array $data) {
@@ -334,7 +379,13 @@ function actionAddChave(array $data) {
         ':restricao' => $restricao
     ]);
 
-    respond(['success' => true, 'chave_id' => (int)$pdo->lastInsertId()]);
+    $chaveId = (int)$pdo->lastInsertId();
+    $notificationSent = sendSecurityNotification(
+        'Nova chave adicionada',
+        'Foi adicionada uma chave: ID=' . $chaveId . ', Codigo=' . $codigo . ', Nome=' . $nome . ', Restricao=' . $restricao
+    );
+
+    respond(['success' => true, 'chave_id' => $chaveId, 'notification_sent' => $notificationSent]);
 }
 
 function actionDeleteChave(array $data) {
