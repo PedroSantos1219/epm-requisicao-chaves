@@ -1,6 +1,18 @@
-# Credenciais
+# Credenciais e configuração real
 config.php
+emailadmin.txt
+txtadmin/
+
+# Base de dados, logs e backups
+data/
+
+# Dados pessoais exportados do Microsoft Forms (RGPD)
+EXCEL - DBALUNOSFORMS/
 
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# IDE
+.vscode/
+.idea/
