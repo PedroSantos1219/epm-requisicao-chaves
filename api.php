@@ -579,6 +579,91 @@ function actionUpdateAdmin(array $data) {
     respond(['success' => true]);
 }
 
+function actionRequestPasswordChange(array $data) {
+    if (empty($data['email']) || empty($data['old_password']) || empty($data['new_password'])) {
+        errorResponse('Email, palavra-passe atual e nova palavra-passe são obrigatórios.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT id, password_hash, email FROM admin WHERE email = :email');
+    $stmt->execute([':email' => $data['email']]);
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$admin || !password_verify($data['old_password'], $admin['password_hash'])) {
+        errorResponse('Email ou palavra-passe atual incorretos.', 401);
+    }
+
+    // Gerar código de 6 dígitos
+    $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+    // Guardar na sessão (expira em 10 minutos) — password já com hash
+    $_SESSION['pw_change'] = [
+        'code'              => $code,
+        'admin_id'          => (int)$admin['id'],
+        'email'             => $admin['email'],
+        'new_password_hash' => password_hash($data['new_password'], PASSWORD_DEFAULT),
+        'expires'           => time() + 600,
+    ];
+
+    // Enviar email com o código
+    $emailBody = "Olá,\n\n"
+        . "Foi solicitada uma alteração de palavra-passe na plataforma Sistema de Requisições.\n\n"
+        . "O seu código de verificação é: $code\n\n"
+        . "Este código expira em 10 minutos.\n\n"
+        . "Se não foi você, ignore este email — a sua palavra-passe permanece inalterada.\n\n"
+        . "Data: " . date('d/m/Y H:i:s') . "\n"
+        . "— Sistema de Requisições";
+
+    $sent = sendSecurityNotification('Código de verificação — Alteração de palavra-passe', $emailBody);
+
+    if (!$sent) {
+        unset($_SESSION['pw_change']);
+        errorResponse('Não foi possível enviar o email de verificação. Verifique a configuração SMTP.');
+    }
+
+    writeSecurityLog('CODIGO_ENVIADO | admin_id=' . $admin['id'] . ' | email=' . $admin['email']);
+    respond(['success' => true, 'message' => 'Código de verificação enviado para o email.']);
+}
+
+function actionConfirmPasswordChange(array $data) {
+    if (empty($data['code'])) {
+        errorResponse('O código de verificação é obrigatório.');
+    }
+
+    if (empty($_SESSION['pw_change'])) {
+        errorResponse('Nenhuma alteração de palavra-passe pendente. Volte a preencher o formulário.');
+    }
+
+    $pending = $_SESSION['pw_change'];
+
+    if (time() > $pending['expires']) {
+        unset($_SESSION['pw_change']);
+        errorResponse('O código expirou. Solicite um novo código.');
+    }
+
+    if ($data['code'] !== $pending['code']) {
+        errorResponse('Código de verificação incorreto.');
+    }
+
+    // Código correto — alterar a password (hash já calculado)
+    $pdo = getPDO();
+    $stmt = $pdo->prepare('UPDATE admin SET password_hash = :password_hash WHERE id = :id');
+    $stmt->execute([
+        ':password_hash' => $pending['new_password_hash'],
+        ':id' => $pending['admin_id']
+    ]);
+
+    unset($_SESSION['pw_change']);
+
+    writeSecurityLog('PASSWORD_ALTERADA | admin_id=' . $pending['admin_id'] . ' | email=' . $pending['email']);
+    sendSecurityNotification(
+        'Palavra-passe alterada com sucesso',
+        'A palavra-passe do administrador (' . $pending['email'] . ') foi alterada em ' . date('d/m/Y H:i:s') . '.'
+    );
+
+    respond(['success' => true, 'message' => 'Palavra-passe alterada com sucesso!']);
+}
+
 $data = getRequestData();
 $action = $data['action'] ?? null;
 
@@ -630,6 +715,12 @@ switch ($action) {
         break;
     case 'updateAdmin':
         actionUpdateAdmin($data);
+        break;
+    case 'changePassword':
+        actionRequestPasswordChange($data);
+        break;
+    case 'confirmPasswordChange':
+        actionConfirmPasswordChange($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
