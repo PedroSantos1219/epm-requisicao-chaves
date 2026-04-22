@@ -97,6 +97,161 @@ function sendSecurityNotification(string $subject, string $message): bool {
     }
 }
 
+function getBackupsDir(): string {
+    $dir = __DIR__ . '/data/backups';
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+    return $dir;
+}
+
+function createBackup(string $reason = 'manual'): string {
+    $dbPath = getDatabasePath();
+    if (!file_exists($dbPath)) {
+        return '';
+    }
+
+    $dir = getBackupsDir();
+    $timestamp = date('Y-m-d_H-i-s');
+    $filename = "backup_{$timestamp}_{$reason}.sqlite";
+    $destPath = $dir . '/' . $filename;
+
+    copy($dbPath, $destPath);
+    writeSecurityLog("BACKUP_CRIADO | ficheiro=$filename | motivo=$reason");
+
+    cleanupOldBackups();
+
+    return $filename;
+}
+
+function cleanupOldBackups(): void {
+    $dir = getBackupsDir();
+    $cutoff = time() - (72 * 3600); // 72 horas (3 dias)
+
+    foreach (glob($dir . '/backup_*.sqlite') as $file) {
+        if (filemtime($file) < $cutoff) {
+            unlink($file);
+            writeSecurityLog('BACKUP_APAGADO | ficheiro=' . basename($file));
+        }
+    }
+}
+
+function listBackups(): array {
+    $dir = getBackupsDir();
+    $backups = [];
+
+    foreach (glob($dir . '/backup_*.sqlite') as $file) {
+        $name = basename($file);
+        $size = filesize($file);
+        $time = filemtime($file);
+
+        // Extrair motivo do nome: backup_2026-04-19_14-30-00_motivo.sqlite
+        $parts = explode('_', pathinfo($name, PATHINFO_FILENAME));
+        $reason = $parts[4] ?? 'manual';
+
+        $backups[] = [
+            'filename'   => $name,
+            'size'       => round($size / 1024, 1) . ' KB',
+            'created_at' => date('d/m/Y H:i:s', $time),
+            'timestamp'  => $time,
+            'reason'     => $reason,
+        ];
+    }
+
+    // Ordenar por mais recente primeiro
+    usort($backups, fn($a, $b) => $b['timestamp'] - $a['timestamp']);
+    return $backups;
+}
+
+function restoreBackup(string $filename): bool {
+    $dir = getBackupsDir();
+    $backupPath = $dir . '/' . basename($filename);
+
+    if (!file_exists($backupPath) || !str_starts_with(basename($filename), 'backup_')) {
+        return false;
+    }
+
+    $dbPath = getDatabasePath();
+
+    // Guardar email e password atuais do admin antes de restaurar
+    $currentPdo = new PDO('sqlite:' . $dbPath);
+    $stmt = $currentPdo->query('SELECT email, password_hash FROM admin ORDER BY id ASC LIMIT 1');
+    $currentAdmin = $stmt->fetch(PDO::FETCH_ASSOC);
+    $currentPdo = null;
+
+    // Criar backup do estado atual antes de restaurar
+    createBackup('pre-restore');
+
+    // Restaurar
+    copy($backupPath, $dbPath);
+
+    // Reaplicar credenciais (nunca voltam atrás)
+    $restoredPdo = new PDO('sqlite:' . $dbPath);
+    $restoredPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    if ($currentAdmin) {
+        $update = $restoredPdo->prepare('UPDATE admin SET email = :email, password_hash = :pw WHERE id = (SELECT id FROM admin ORDER BY id ASC LIMIT 1)');
+        $update->execute([
+            ':email' => $currentAdmin['email'],
+            ':pw'    => $currentAdmin['password_hash']
+        ]);
+    }
+
+    $restoredPdo = null;
+
+    writeSecurityLog("BACKUP_RESTAURADO | ficheiro=$filename | credenciais_admin_preservadas=sim");
+
+    return true;
+}
+
+function actionListBackups() {
+    requireAdmin();
+    respond(['success' => true, 'backups' => listBackups()]);
+}
+
+function actionCreateBackup() {
+    requireAdmin();
+    $filename = createBackup('manual');
+    respond(['success' => true, 'filename' => $filename, 'message' => 'Backup criado com sucesso.']);
+}
+
+function actionRestoreBackup(array $data) {
+    requireAdmin();
+
+    if (empty($data['filename'])) {
+        errorResponse('Nome do ficheiro de backup é obrigatório.');
+    }
+
+    $restored = restoreBackup($data['filename']);
+    if (!$restored) {
+        errorResponse('Backup não encontrado ou inválido.');
+    }
+
+    respond(['success' => true, 'message' => 'Backup restaurado com sucesso! Recarregue a página.']);
+}
+
+function autoBackupIfNeeded(): void {
+    $dir = getBackupsDir();
+    $lockFile = $dir . '/last_auto_backup.txt';
+
+    // Verificar se já passou 1 hora desde o último backup automático
+    if (file_exists($lockFile)) {
+        $lastTime = (int)file_get_contents($lockFile);
+        if (time() - $lastTime < 3600) {
+            return; // Menos de 1 hora, não faz nada
+        }
+    }
+
+    // Verificar se a BD existe antes de fazer backup
+    $dbPath = getDatabasePath();
+    if (!file_exists($dbPath) || filesize($dbPath) === 0) {
+        return;
+    }
+
+    createBackup('auto');
+    file_put_contents($lockFile, (string)time());
+}
+
 function getPDO() {
     static $pdo = null;
     if ($pdo !== null) {
