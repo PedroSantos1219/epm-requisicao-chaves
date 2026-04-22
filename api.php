@@ -268,8 +268,18 @@ function getPDO() {
         initializeDatabase($pdo);
     }
 
+    ensureSettingsTable($pdo);
+
     cleanupOldRequisicoes($pdo);
     return $pdo;
+}
+
+function ensureSettingsTable(PDO $pdo) {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )");
+    $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('professor_pin', '1111')");
 }
 
 function cleanupOldRequisicoes(PDO $pdo) {
@@ -352,6 +362,13 @@ function initializeDatabase(PDO $pdo) {
         ':password_hash' => password_hash('1111', PASSWORD_DEFAULT),
         ':created_at' => date('c')
     ]);
+
+    // Tabela de configurações (PIN professor, etc.)
+    $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )");
+    $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('professor_pin', '1111')");
 }
 
 function requireAdmin() {
