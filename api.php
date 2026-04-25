@@ -269,6 +269,7 @@ function getPDO() {
     }
 
     ensureSettingsTable($pdo);
+    ensureUserTelefoneColumn($pdo);
 
     cleanupOldRequisicoes($pdo);
     return $pdo;
@@ -280,6 +281,32 @@ function ensureSettingsTable(PDO $pdo) {
         value TEXT NOT NULL
     )");
     $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('professor_pin', '1111')");
+}
+
+function ensureUserTelefoneColumn(PDO $pdo): void {
+    $cols = $pdo->query("PRAGMA table_info(users)")->fetchAll(PDO::FETCH_ASSOC);
+    $colNames = array_column($cols, 'name');
+
+    if (!in_array('telefone', $colNames, true)) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN telefone TEXT");
+    }
+
+    // Normalizar espaços para evitar números visualmente iguais em formatos diferentes.
+    $pdo->exec("UPDATE users SET telefone = REPLACE(telefone, ' ', '') WHERE telefone IS NOT NULL");
+
+    // Criar índice único parcial apenas se não houver duplicados legados.
+    $dupStmt = $pdo->query("SELECT telefone, COUNT(*) AS c
+        FROM users
+        WHERE tipo = 'ALUNO' AND telefone IS NOT NULL AND TRIM(telefone) <> ''
+        GROUP BY telefone
+        HAVING COUNT(*) > 1
+        LIMIT 1");
+
+    if (!$dupStmt->fetch(PDO::FETCH_ASSOC)) {
+        $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_aluno_telefone_unique
+            ON users(telefone)
+            WHERE tipo = 'ALUNO' AND telefone IS NOT NULL AND telefone <> ''");
+    }
 }
 
 function cleanupOldRequisicoes(PDO $pdo) {
@@ -334,6 +361,7 @@ function initializeDatabase(PDO $pdo) {
         nome TEXT NOT NULL,
         tipo TEXT NOT NULL,
         turma TEXT,
+        telefone TEXT,
         created_at TEXT NOT NULL
     )");
 
