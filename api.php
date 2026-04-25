@@ -459,11 +459,12 @@ function actionLogoutAdmin() {
 function actionListUsers(array $data) {
     $pdo = getPDO();
     if (!empty($data['tipo'])) {
-        $stmt = $pdo->prepare('SELECT id, nome, tipo, turma FROM users WHERE tipo = :tipo ORDER BY nome');
+        $stmt = $pdo->prepare('SELECT id, nome, tipo, turma, telefone FROM users WHERE tipo = :tipo ORDER BY nome');
         $stmt->execute([':tipo' => $data['tipo']]);
     } else {
-        $stmt = $pdo->query('SELECT id, nome, tipo, turma FROM users ORDER BY tipo, nome');
+        $stmt = $pdo->query('SELECT id, nome, tipo, turma, telefone FROM users ORDER BY tipo, nome');
     }
+
     respond(['success' => true, 'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
@@ -476,23 +477,45 @@ function actionAddUser(array $data) {
     $nome = trim($data['nome']);
     $tipo = strtoupper(trim($data['tipo'])) === 'COLABORADOR' ? 'COLABORADOR' : 'ALUNO';
     $turma = isset($data['turma']) ? trim($data['turma']) : null;
+    $telefone = isset($data['telefone']) ? preg_replace('/\s+/', '', trim((string)$data['telefone'])) : null;
 
     if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
     if ($turma && mb_strlen($turma) > 50) errorResponse('Turma demasiado longa (máx 50 caracteres).');
 
+    if ($tipo === 'ALUNO') {
+        if (empty($telefone)) {
+            errorResponse('Número de telefone é obrigatório para alunos.');
+        }
+        if (!preg_match('/^\d{9,15}$/', $telefone)) {
+            errorResponse('Número de telefone inválido (9-15 dígitos).');
+        }
+    } else {
+        $telefone = null;
+    }
+
     $pdo = getPDO();
-    $stmt = $pdo->prepare('INSERT INTO users (nome, tipo, turma, created_at) VALUES (:nome, :tipo, :turma, :created_at)');
+
+    if ($tipo === 'ALUNO') {
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE tipo = "ALUNO" AND telefone = :telefone LIMIT 1');
+        $stmt->execute([':telefone' => $telefone]);
+        if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+            errorResponse('Este número já está registado noutro aluno.');
+        }
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO users (nome, tipo, turma, telefone, created_at) VALUES (:nome, :tipo, :turma, :telefone, :created_at)');
     $stmt->execute([
         ':nome' => $nome,
         ':tipo' => $tipo,
         ':turma' => $turma,
+        ':telefone' => $telefone,
         ':created_at' => date('c')
     ]);
 
     $userId = (int)$pdo->lastInsertId();
     $notificationSent = sendSecurityNotification(
         'Novo utilizador adicionado',
-        'Foi adicionado um utilizador: ID=' . $userId . ', Nome=' . $nome . ', Tipo=' . $tipo . ', Turma/Disciplina=' . ($turma ?: '-')
+        'Foi adicionado um utilizador: ID=' . $userId . ', Nome=' . $nome . ', Tipo=' . $tipo . ', Turma/Disciplina=' . ($turma ?: '-') . ', Telefone=' . ($telefone ?: '-')
     );
 
     respond(['success' => true, 'user_id' => $userId, 'notification_sent' => $notificationSent]);
