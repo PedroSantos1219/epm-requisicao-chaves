@@ -663,7 +663,7 @@ function actionListRequisicoes(array $data) {
     $pdo = getPDO();
     $range = $data['range'] ?? '24h';
     $rangeCond = getRangeCondition($range);
-    $sql = "SELECT req.id, req.user_id, req.chave_id, req.inicio, req.fim, req.estado,
+    $sql = "SELECT req.id, req.user_id, req.chave_id, req.inicio, req.fim, req.estado, req.telefone, req.ip_address,
             u.nome AS user_nome, u.tipo AS user_tipo, u.turma AS user_turma,
             c.codigo AS chave_codigo, c.nome AS chave_nome
             FROM requisicoes req
@@ -706,12 +706,13 @@ function actionCreateRequisicao(array $data) {
         errorResponse('A chave já está em utilização.');
     }
 
-    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, created_at)
-        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", :created_at)');
+    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, telefone, ip_address, created_at)
+        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", NULL, :ip_address, :created_at)');
     $stmt->execute([
         ':user_id' => (int)$data['user_id'],
         ':chave_id' => (int)$data['chave_id'],
         ':inicio' => date('c'),
+        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
         ':created_at' => date('c')
     ]);
 
@@ -722,13 +723,21 @@ function actionDevolverRequisicao(array $data) {
     if (empty($data['id']) || !is_numeric($data['id'])) {
         errorResponse('ID da requisição inválido.');
     }
+    if (empty($data['telefone'])) {
+        errorResponse('Número de telefone é obrigatório.');
+    }
+
+    $telefone = preg_replace('/\s+/', '', trim($data['telefone']));
 
     $pdo = getPDO();
-    $stmt = $pdo->prepare('SELECT estado FROM requisicoes WHERE id = :id');
+    $stmt = $pdo->prepare('SELECT estado, telefone FROM requisicoes WHERE id = :id');
     $stmt->execute([':id' => (int)$data['id']]);
     $req = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$req || $req['estado'] !== 'ATIVA') {
         errorResponse('Requisição não encontrada ou já devolvida.');
+    }
+    if ($req['telefone'] !== $telefone) {
+        errorResponse('Número de telefone incorreto.');
     }
 
     $stmt = $pdo->prepare('UPDATE requisicoes SET fim = :fim, estado = "DEVOLVIDA" WHERE id = :id');
