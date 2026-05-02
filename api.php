@@ -269,6 +269,7 @@ function getPDO() {
     }
 
     ensureSettingsTable($pdo);
+    ensureTelefoneColumn($pdo);
     ensureUserTelefoneColumn($pdo);
 
     cleanupOldRequisicoes($pdo);
@@ -281,6 +282,40 @@ function ensureSettingsTable(PDO $pdo) {
         value TEXT NOT NULL
     )");
     $pdo->exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('professor_pin', '1111')");
+}
+
+function ensureTelefoneColumn(PDO $pdo): void {
+    // Migração: adicionar coluna telefone e remover codigoEntrega se existir
+    $cols = $pdo->query("PRAGMA table_info(requisicoes)")->fetchAll(PDO::FETCH_ASSOC);
+    $colNames = array_column($cols, 'name');
+    if (!in_array('telefone', $colNames, true)) {
+        $pdo->exec("ALTER TABLE requisicoes ADD COLUMN telefone TEXT");
+    }
+    // Remover coluna codigoEntrega (recriar tabela porque SQLite não suporta DROP COLUMN)
+    if (in_array('codigoEntrega', $colNames, true)) {
+        $pdo->exec("BEGIN TRANSACTION");
+        $pdo->exec("CREATE TABLE requisicoes_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            chave_id INTEGER NOT NULL,
+            inicio TEXT NOT NULL,
+            fim TEXT,
+            estado TEXT NOT NULL,
+            telefone TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(chave_id) REFERENCES chaves(id) ON DELETE CASCADE
+        )");
+        $pdo->exec("INSERT INTO requisicoes_new (id, user_id, chave_id, inicio, fim, estado, telefone, created_at)
+            SELECT id, user_id, chave_id, inicio, fim, estado, telefone, created_at FROM requisicoes");
+        $pdo->exec("DROP TABLE requisicoes");
+        $pdo->exec("ALTER TABLE requisicoes_new RENAME TO requisicoes");
+        $pdo->exec("COMMIT");
+    }
+    // Adicionar coluna ip_address se não existir
+    if (!in_array('ip_address', $colNames, true)) {
+        $pdo->exec("ALTER TABLE requisicoes ADD COLUMN ip_address TEXT");
+    }
 }
 
 function ensureUserTelefoneColumn(PDO $pdo): void {
@@ -379,6 +414,7 @@ function initializeDatabase(PDO $pdo) {
         inicio TEXT NOT NULL,
         fim TEXT,
         estado TEXT NOT NULL,
+        telefone TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY(chave_id) REFERENCES chaves(id) ON DELETE CASCADE
