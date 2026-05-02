@@ -769,12 +769,23 @@ function actionCreateRequisicaoAluno(array $data) {
         errorResponse('Nome e chave são obrigatórios.');
     }
 
+    if (empty($data['telefone'])) {
+        errorResponse('Número de telefone é obrigatório.');
+    }
+
     $nome = trim($data['nome']);
+    $turma = isset($data['turma']) ? trim($data['turma']) : null;
+    $telefone = preg_replace('/\s+/', '', trim($data['telefone']));
+
+    if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
+    if ($turma && mb_strlen($turma) > 50) errorResponse('Turma demasiado longa (máx 50 caracteres).');
+    if (!preg_match('/^\d{9,15}$/', $telefone)) errorResponse('Número de telefone inválido (9-15 dígitos).');
+
     $pdo = getPDO();
 
     // Procura o aluno pelo nome ignorando acentos, espaços e maiúsculas/minúsculas.
     $normalizedInputName = normalizePersonName($nome);
-    $stmt = $pdo->prepare('SELECT id, nome FROM users WHERE tipo = "ALUNO"');
+    $stmt = $pdo->prepare('SELECT id, nome, telefone FROM users WHERE tipo = "ALUNO"');
     $stmt->execute();
     $existing = null;
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $userRow) {
@@ -788,7 +799,20 @@ function actionCreateRequisicaoAluno(array $data) {
         errorResponse('Utilizador não registado. Apenas alunos registados podem requisitar chaves.');
     }
     $userId = (int)$existing['id'];
+
+    $registeredPhone = preg_replace('/\s+/', '', trim((string)($existing['telefone'] ?? '')));
+    if ($registeredPhone !== '' && $registeredPhone !== $telefone) {
+        errorResponse('Este número de telefone não corresponde ao registado para este aluno.');
+    }
+
     $chaveId = (int)$data['chave_id'];
+
+    // Verificar se o telefone já está a ser usado numa requisição ativa
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM requisicoes WHERE telefone = :telefone AND estado = "ATIVA"');
+    $stmt->execute([':telefone' => $telefone]);
+    if ($stmt->fetchColumn() > 0) {
+        errorResponse('Este número de telefone já está associado a uma requisição ativa.');
+    }
 
     $stmt = $pdo->prepare('SELECT id, codigo, nome, restricao FROM chaves WHERE id = :id');
     $stmt->execute([':id' => $chaveId]);
@@ -807,12 +831,14 @@ function actionCreateRequisicaoAluno(array $data) {
         errorResponse('A chave já está em utilização.');
     }
 
-    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, created_at)
-        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", :created_at)');
+    $stmt = $pdo->prepare('INSERT INTO requisicoes (user_id, chave_id, inicio, fim, estado, telefone, ip_address, created_at)
+        VALUES (:user_id, :chave_id, :inicio, NULL, "ATIVA", :telefone, :ip_address, :created_at)');
     $stmt->execute([
         ':user_id' => $userId,
         ':chave_id' => $chaveId,
         ':inicio' => date('c'),
+        ':telefone' => $telefone,
+        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
         ':created_at' => date('c')
     ]);
 
