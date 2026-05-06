@@ -271,6 +271,7 @@ function getPDO() {
     ensureSettingsTable($pdo);
     ensureTelefoneColumn($pdo);
     ensureUserTelefoneColumn($pdo);
+    migrateColaboradorToProfessor($pdo);
 
     cleanupOldRequisicoes($pdo);
     return $pdo;
@@ -316,6 +317,12 @@ function ensureTelefoneColumn(PDO $pdo): void {
     if (!in_array('ip_address', $colNames, true)) {
         $pdo->exec("ALTER TABLE requisicoes ADD COLUMN ip_address TEXT");
     }
+}
+
+function migrateColaboradorToProfessor(PDO $pdo): void {
+    // Migração: renomear COLABORADOR para PROFESSOR nos registos existentes
+    $pdo->exec("UPDATE users SET tipo = 'PROFESSOR' WHERE tipo = 'COLABORADOR'");
+    $pdo->exec("UPDATE chaves SET restricao = 'PROFESSOR' WHERE restricao = 'COLABORADOR'");
 }
 
 function ensureUserTelefoneColumn(PDO $pdo): void {
@@ -511,7 +518,7 @@ function actionAddUser(array $data) {
     }
 
     $nome = trim($data['nome']);
-    $tipo = strtoupper(trim($data['tipo'])) === 'COLABORADOR' ? 'COLABORADOR' : 'ALUNO';
+    $tipo = strtoupper(trim($data['tipo'])) === 'PROFESSOR' ? 'PROFESSOR' : 'ALUNO';
     $turma = isset($data['turma']) ? trim($data['turma']) : null;
     $telefone = isset($data['telefone']) ? preg_replace('/\s+/', '', trim((string)$data['telefone'])) : null;
 
@@ -634,8 +641,8 @@ function actionAddChave(array $data) {
 
     if (mb_strlen($codigo) > 50) errorResponse('Código demasiado longo (máx 50 caracteres).');
     if (mb_strlen($nome) > 100) errorResponse('Nome demasiado longo (máx 100 caracteres).');
-    if (!in_array($restricao, ['ALUNO', 'COLABORADOR'], true)) {
-        errorResponse('Restrição deve ser ALUNO ou COLABORADOR.');
+    if (!in_array($restricao, ['ALUNO', 'PROFESSOR'], true)) {
+        errorResponse('Restrição deve ser ALUNO ou PROFESSOR.');
     }
 
     $pdo = getPDO();
