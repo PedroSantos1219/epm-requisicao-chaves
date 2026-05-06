@@ -599,8 +599,16 @@ function actionDeleteUser(array $data) {
 
     $stmt = $pdo->prepare('SELECT tipo FROM users WHERE id = :id');
     $stmt->execute([':id' => (int)$data['id']]);
-    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user) {
         errorResponse('Utilizador não encontrado.');
+    }
+
+    // Verificar se tem requisições ativas
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM requisicoes WHERE user_id = :id AND estado = "ATIVA"');
+    $stmt->execute([':id' => (int)$data['id']]);
+    if ($stmt->fetchColumn() > 0) {
+        errorResponse('Não é possível remover um utilizador com chaves em uso.', 409);
     }
 
     $stmt = $pdo->prepare('DELETE FROM users WHERE id = :id');
@@ -649,11 +657,19 @@ function actionAddChave(array $data) {
 
 function actionDeleteChave(array $data) {
     requireAdmin();
+    createBackup('delete-chave');
+
     if (empty($data['id']) || !is_numeric($data['id'])) {
         errorResponse('ID da chave inválido.');
     }
 
     $pdo = getPDO();
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM requisicoes WHERE chave_id = :id AND estado = "ATIVA"');
+    $stmt->execute([':id' => (int)$data['id']]);
+    if ($stmt->fetchColumn() > 0) {
+        errorResponse('Não é possível remover uma chave em uso ativo.', 409);
+    }
+
     $stmt = $pdo->prepare('DELETE FROM chaves WHERE id = :id');
     $stmt->execute([':id' => (int)$data['id']]);
     respond(['success' => true]);
