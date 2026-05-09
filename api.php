@@ -868,6 +868,50 @@ function actionCreateRequisicaoAluno(array $data) {
     respond(['success' => true, 'requisicao_id' => $pdo->lastInsertId()]);
 }
 
+function actionVerifyProfessorPin(array $data) {
+    if (empty($data['pin'])) {
+        errorResponse('PIN é obrigatório.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare("SELECT value FROM settings WHERE key = 'professor_pin'");
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $storedPin = $row ? $row['value'] : '1111';
+
+    if ($data['pin'] !== $storedPin) {
+        writeSecurityLog('PIN_PROFESSOR_INVALIDO | ip=' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        errorResponse('PIN inválido.', 401);
+    }
+
+    $_SESSION['professor_verified'] = true;
+    respond(['success' => true]);
+}
+
+function actionDevolverRequisicaoProfessor(array $data) {
+    if (empty($_SESSION['professor_verified'])) {
+        errorResponse('Acesso negado. Verifique o PIN de professor.', 403);
+    }
+    if (empty($data['id']) || !is_numeric($data['id'])) {
+        errorResponse('ID da requisição inválido.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare("SELECT req.estado, u.tipo AS user_tipo FROM requisicoes req LEFT JOIN users u ON u.id = req.user_id WHERE req.id = :id");
+    $stmt->execute([':id' => (int)$data['id']]);
+    $req = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$req || $req['estado'] !== 'ATIVA') {
+        errorResponse('Requisição não encontrada ou já devolvida.');
+    }
+    if ($req['user_tipo'] !== 'PROFESSOR') {
+        errorResponse('Apenas chaves de professor podem ser devolvidas neste modo.');
+    }
+
+    $stmt = $pdo->prepare('UPDATE requisicoes SET fim = :fim, estado = "DEVOLVIDA" WHERE id = :id');
+    $stmt->execute([':fim' => date('c'), ':id' => (int)$data['id']]);
+    respond(['success' => true]);
+}
+
 function actionUpdateAdmin(array $data) {
     requireAdmin();
 
@@ -1027,6 +1071,9 @@ switch ($action) {
     case 'devolverRequisicao':
         actionDevolverRequisicao($data);
         break;
+    case 'devolverRequisicaoProfessor':
+        actionDevolverRequisicaoProfessor($data);
+        break;
     case 'adminDevolverRequisicao':
         actionAdminDevolverRequisicao($data);
         break;
@@ -1038,6 +1085,9 @@ switch ($action) {
         break;
     case 'confirmPasswordChange':
         actionConfirmPasswordChange($data);
+        break;
+    case 'verifyProfessorPin':
+        actionVerifyProfessorPin($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
