@@ -868,6 +868,34 @@ function actionCreateRequisicaoAluno(array $data) {
     respond(['success' => true, 'requisicao_id' => $pdo->lastInsertId()]);
 }
 
+function actionGetProfessorPin() {
+    requireAdmin();
+    $pdo = getPDO();
+    $stmt = $pdo->prepare("SELECT value FROM settings WHERE key = 'professor_pin'");
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    respond(['success' => true, 'pin' => $row ? $row['value'] : '1111']);
+}
+
+function actionUpdateProfessorPin(array $data) {
+    requireAdmin();
+    if (empty($data['pin']) || !preg_match('/^\d{4,8}$/', $data['pin'])) {
+        errorResponse('O PIN deve ter entre 4 e 8 dígitos.');
+    }
+
+    $pdo = getPDO();
+    $stmt = $pdo->prepare("UPDATE settings SET value = :pin WHERE key = 'professor_pin'");
+    $stmt->execute([':pin' => $data['pin']]);
+
+    writeSecurityLog('PIN_PROFESSOR_ALTERADO | novo_pin=' . $data['pin']);
+    sendSecurityNotification(
+        'PIN de Professor alterado',
+        'O PIN de acesso dos professores foi alterado em ' . date('d/m/Y H:i:s') . '.'
+    );
+
+    respond(['success' => true, 'message' => 'PIN atualizado com sucesso.']);
+}
+
 function actionVerifyProfessorPin(array $data) {
     if (empty($data['pin'])) {
         errorResponse('PIN é obrigatório.');
@@ -1088,6 +1116,12 @@ switch ($action) {
         break;
     case 'verifyProfessorPin':
         actionVerifyProfessorPin($data);
+        break;
+    case 'getProfessorPin':
+        actionGetProfessorPin();
+        break;
+    case 'updateProfessorPin':
+        actionUpdateProfessorPin($data);
         break;
     default:
         errorResponse('Ação inválida ou não especificada.', 400);
