@@ -173,10 +173,19 @@ function restoreBackup(string $filename): bool {
 
     $dbPath = getDatabasePath();
 
-    // Guardar email e password atuais do admin antes de restaurar
+    // Guardar a password e email atuais do admin antes de restaurar
     $currentPdo = new PDO('sqlite:' . $dbPath);
     $stmt = $currentPdo->query('SELECT email, password_hash FROM admin ORDER BY id ASC LIMIT 1');
     $currentAdmin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Guardar o PIN de professor atual
+    $currentPin = null;
+    try {
+        $stmt = $currentPdo->prepare("SELECT value FROM settings WHERE key = 'professor_pin'");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) $currentPin = $row['value'];
+    } catch (Exception $e) {}
     $currentPdo = null;
 
     // Criar backup do estado atual antes de restaurar
@@ -185,7 +194,7 @@ function restoreBackup(string $filename): bool {
     // Restaurar
     copy($backupPath, $dbPath);
 
-    // Reaplicar credenciais (nunca voltam atrás)
+    // Reaplicar credenciais e configurações (nunca voltam atrás)
     $restoredPdo = new PDO('sqlite:' . $dbPath);
     $restoredPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -197,9 +206,15 @@ function restoreBackup(string $filename): bool {
         ]);
     }
 
+    if ($currentPin !== null) {
+        $restoredPdo->exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        $stmt = $restoredPdo->prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('professor_pin', :pin)");
+        $stmt->execute([':pin' => $currentPin]);
+    }
+
     $restoredPdo = null;
 
-    writeSecurityLog("BACKUP_RESTAURADO | ficheiro=$filename | credenciais_admin_preservadas=sim");
+    writeSecurityLog("BACKUP_RESTAURADO | ficheiro=$filename | credenciais_admin_preservadas=sim | pin_preservado=sim");
 
     return true;
 }
