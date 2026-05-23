@@ -7,17 +7,22 @@
  * @license Todos os direitos reservados
  */
 
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.use_strict_mode', 1);
-session_start();
+// Só inicia sessão/headers quando chamado diretamente (não em includes do seed)
+$isDirectRequest = realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__;
 
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-header('X-XSS-Protection: 1; mode=block');
-header('Referrer-Policy: strict-origin-when-cross-origin');
-header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+if ($isDirectRequest) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.use_strict_mode', 1);
+    session_start();
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+}
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/vendor/phpmailer/Exception.php';
@@ -1066,6 +1071,11 @@ function actionConfirmPasswordChange(array $data) {
     );
 
     respond(['success' => true, 'message' => 'Palavra-passe alterada com sucesso!']);
+}
+
+// Quando incluído por outro script (ex: seed_alunos.php), não despachar ações
+if (!$isDirectRequest) {
+    return;
 }
 
 $data = getRequestData();
