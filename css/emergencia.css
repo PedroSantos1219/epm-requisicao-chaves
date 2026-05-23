@@ -1,0 +1,155 @@
+/* ── Página de Emergência ──────────────────────────────── */
+
+.emergency-zone {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.emergency-btn {
+  cursor: pointer;
+  transition: transform 0.15s;
+  filter: drop-shadow(0 8px 24px rgba(200, 0, 0, 0.4));
+  max-width: 260px;
+  width: 100%;
+}
+
+.emergency-btn:hover {
+  transform: scale(1.08);
+}
+
+.emergency-btn:active {
+  transform: scale(0.95);
+}
+
+.emergency-description {
+  max-width: 520px;
+  margin: 24px auto 0;
+  font-size: 15px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.emergency-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #c00;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+/* ── Animação ativa ─────────────────────────────────────── */
+
+.siren-active {
+  animation: siren-flash 0.3s ease-in-out infinite alternate;
+}
+
+body.siren-active {
+  overflow: hidden;
+}
+
+.siren-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  animation: siren-bg 0.6s ease-in-out infinite alternate;
+}
+
+.siren-overlay.active {
+  display: flex;
+}
+
+@keyframes siren-bg {
+  0%   { background: rgba(200, 0, 0, 0.92); }
+  100% { background: rgba(30, 0, 0, 0.96); }
+}
+
+@keyframes siren-flash {
+  0%   { filter: brightness(1); }
+  100% { filter: brightness(1.5); }
+}
+
+@keyframes pulse-btn {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%  { transform: translateX(-8px) rotate(-1deg); }
+  20%  { transform: translateX(8px) rotate(1deg); }
+  30%  { transform: translateX(-6px) rotate(-0.5deg); }
+  40%  { transform: translateX(6px) rotate(0.5deg); }
+  50%  { transform: translateX(-4px); }
+  60%  { transform: translateX(4px); }
+  70%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+  90%  { transform: translateX(-1px); }
+}
+
+@keyframes fade-text {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.siren-overlay .siren-icon {
+  font-size: 80px;
+  animation: pulse-btn 0.5s ease-in-out infinite;
+}
+
+.siren-overlay .siren-text {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin-top: 20px;
+  animation: fade-text 0.6s ease-in-out infinite;
+}
+
+.siren-overlay .siren-sub {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.siren-overlay .progress-ring {
+  margin-top: 30px;
+  width: 80px;
+  height: 80px;
+}
+
+.siren-overlay .progress-ring circle {
+  fill: none;
+  stroke-width: 6;
+}
+
+.siren-overlay .progress-ring .bg {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+.siren-overlay .progress-ring .fg {
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-dasharray: 226;
+  stroke-dashoffset: 226;
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+.shake-content {
+  animation: shake 0.4s ease-in-out infinite;
+}
+
+.btn-cancel-emergency {
+  font-weight: bold;
+  padding: 8px 32px;
+}
+
+.info-text-sm {
+  font-size: 13px;
+}
