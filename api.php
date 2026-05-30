@@ -1139,6 +1139,15 @@ switch ($action) {
     case 'confirmPasswordChange':
         actionConfirmPasswordChange($data);
         break;
+    case 'listBackups':
+        actionListBackups();
+        break;
+    case 'createBackup':
+        actionCreateBackup();
+        break;
+    case 'restoreBackup':
+        actionRestoreBackup($data);
+        break;
     case 'verifyProfessorPin':
         actionVerifyProfessorPin($data);
         break;
