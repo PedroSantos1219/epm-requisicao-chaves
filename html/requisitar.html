@@ -82,8 +82,8 @@
   <button class="btn btn-success btn-sm" id="cookieAccept">Aceitar</button>
 </div>
 
-<script src="../js/api.js?v=3"></script>
-<script src="../js/requisicao.js?v=3"></script>
+<script src="../js/api.js?v=6"></script>
+<script src="../js/requisicao.js?v=6"></script>
 
 <script>
   async function initRequestPage() {
@@ -291,6 +291,18 @@
             turma,
             telefone
           };
+
+          // Pré-validar nome+telefone antes do countdown
+          setSubmitState(true, "A verificar...");
+          try {
+            await apiRequest("lookupAluno", { nome, telefone });
+          } catch (lookupError) {
+            pendingRequisicao = null;
+            setSubmitState(false);
+            err.textContent = lookupError.message;
+            err.style.display = "block";
+            return;
+          }
         }
 
         startAutoReturn();

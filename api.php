@@ -376,6 +376,42 @@ function cleanupOldRequisicoes(PDO $pdo) {
     $stmt->execute();
 }
 
+function findAlunoByName(PDO $pdo, string $nome): ?array {
+    $tokens = preg_split('/\s+/u', trim($nome), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if (empty($tokens)) return null;
+
+    $inputLast = normalizePersonName(end($tokens));
+    $inputFirst = count($tokens) > 1 ? normalizePersonName($tokens[0]) : null;
+
+    $stmt = $pdo->prepare('SELECT id, nome, telefone FROM users WHERE tipo = "ALUNO"');
+    $stmt->execute();
+
+    $candidates = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $u) {
+        $regTokens = preg_split('/\s+/u', trim((string)$u['nome']), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (empty($regTokens)) continue;
+        if (normalizePersonName(end($regTokens)) === $inputLast) {
+            $candidates[] = $u;
+        }
+    }
+
+    if (count($candidates) === 0) return null;
+    if (count($candidates) === 1) return $candidates[0];
+
+    // Vários alunos com o mesmo apelido: desambiguar pelo nome próprio
+    if ($inputFirst === null) return null;
+
+    $filtered = [];
+    foreach ($candidates as $c) {
+        $regTokens = preg_split('/\s+/u', trim((string)$c['nome']), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (normalizePersonName($regTokens[0]) === $inputFirst) {
+            $filtered[] = $c;
+        }
+    }
+
+    return count($filtered) === 1 ? $filtered[0] : null;
+}
+
 function normalizePersonName(string $name): string {
     $normalized = trim($name);
     $normalized = preg_replace('/\s+/u', '', $normalized);
@@ -807,6 +843,27 @@ function actionAdminDevolverRequisicao(array $data) {
     respond(['success' => true]);
 }
 
+function actionLookupAluno(array $data) {
+    if (empty($data['nome'])) {
+        errorResponse('Nome é obrigatório.');
+    }
+
+    $telefone = !empty($data['telefone']) ? preg_replace('/\s+/', '', trim((string)$data['telefone'])) : '';
+
+    $pdo = getPDO();
+    $existing = findAlunoByName($pdo, trim($data['nome']));
+    if (!$existing) {
+        errorResponse('Utilizador não registado. Apenas alunos registados podem requisitar chaves.');
+    }
+
+    $registeredPhone = preg_replace('/\s+/', '', trim((string)($existing['telefone'] ?? '')));
+    if ($telefone !== '' && $registeredPhone !== '' && $registeredPhone !== $telefone) {
+        errorResponse('Este número de telefone não corresponde ao registado para este aluno.');
+    }
+
+    respond(['success' => true]);
+}
+
 function actionCreateRequisicaoAluno(array $data) {
     if (empty($data['nome']) || empty($data['chave_id'])) {
         errorResponse('Nome e chave são obrigatórios.');
@@ -826,18 +883,8 @@ function actionCreateRequisicaoAluno(array $data) {
 
     $pdo = getPDO();
 
-    // Procura o aluno pelo nome ignorando acentos, espaços e maiúsculas/minúsculas.
-    $normalizedInputName = normalizePersonName($nome);
-    $stmt = $pdo->prepare('SELECT id, nome, telefone FROM users WHERE tipo = "ALUNO"');
-    $stmt->execute();
-    $existing = null;
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $userRow) {
-        if (normalizePersonName((string)$userRow['nome']) === $normalizedInputName) {
-            $existing = $userRow;
-            break;
-        }
-    }
-
+    // Match por apelido (último nome). Em caso de homónimos, usa também o nome próprio.
+    $existing = findAlunoByName($pdo, $nome);
     if (!$existing) {
         errorResponse('Utilizador não registado. Apenas alunos registados podem requisitar chaves.');
     }
@@ -1120,6 +1167,9 @@ switch ($action) {
         break;
     case 'createRequisicaoAluno':
         actionCreateRequisicaoAluno($data);
+        break;
+    case 'lookupAluno':
+        actionLookupAluno($data);
         break;
     case 'devolverRequisicao':
         actionDevolverRequisicao($data);
