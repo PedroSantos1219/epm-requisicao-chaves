@@ -30,8 +30,28 @@
   <div id="msgOk" class="success alert alert-success" style="display:none"></div>
   <div id="msgErr" class="error alert alert-danger" style="display:none"></div>
 
+  <!-- Criação do primeiro Administrador (só quando ainda não existe) -->
+  <div class="card mb-4 d-none" id="createInitialCard">
+    <h5 class="mb-3">Criar Administrador</h5>
+    <p class="text-muted info-text">
+      Ainda não existe nenhum administrador. Defina o email e a palavra-passe que irá usar para gerir o sistema. Este passo só acontece uma vez.
+    </p>
+    <form id="createInitialForm">
+      <label for="ciEmail">Email</label>
+      <input type="email" class="form-control" id="ciEmail" placeholder="admin@escola.pt" required />
+
+      <label for="ciPassword">Palavra-passe</label>
+      <input type="password" class="form-control" id="ciPassword" placeholder="Mínimo 4 caracteres" minlength="4" required />
+
+      <label for="ciConfirmPassword">Confirmar palavra-passe</label>
+      <input type="password" class="form-control" id="ciConfirmPassword" placeholder="Confirmar" minlength="4" required />
+
+      <button type="submit" class="btn btn-success w-100 mt-3">Criar e entrar</button>
+    </form>
+  </div>
+
   <!-- Login -->
-  <div class="card mb-4" id="loginCard">
+  <div class="card mb-4 d-none" id="loginCard">
     <h5 class="mb-3">Entrar como Administrador</h5>
     <form id="loginForm">
       <label for="loginEmail">Email</label>
@@ -108,10 +128,11 @@
   <button class="btn btn-success btn-sm" id="cookieAccept">Aceitar</button>
 </div>
 
-<script src="../js/api.js?v=3"></script>
+<script src="../js/api.js?v=6"></script>
 <script>
   const msgOk = document.getElementById("msgOk");
   const msgErr = document.getElementById("msgErr");
+  const createInitialCard = document.getElementById("createInitialCard");
   const loginCard = document.getElementById("loginCard");
   const changePassCard = document.getElementById("changePassCard");
   const verifyCodeCard = document.getElementById("verifyCodeCard");
@@ -130,12 +151,47 @@
   const btnVoltarNav = document.getElementById("btnVoltarNav");
 
   function showCard(card) {
+    createInitialCard.classList.add("d-none");
     loginCard.classList.add("d-none");
     changePassCard.classList.add("d-none");
     verifyCodeCard.classList.add("d-none");
     card.classList.remove("d-none");
     if (btnVoltarNav) btnVoltarNav.classList.toggle("d-none", card !== loginCard);
   }
+
+  // Decidir o card inicial conforme exista admin ou não
+  (async () => {
+    try {
+      const res = await apiRequest("adminExists");
+      showCard(res.exists ? loginCard : createInitialCard);
+    } catch (e) {
+      showCard(loginCard);
+      showMsg(msgErr, "Não foi possível verificar o estado do administrador.");
+    }
+  })();
+
+  // Submissão da criação inicial
+  document.getElementById("createInitialForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideMessages();
+
+    const email = document.getElementById("ciEmail").value.trim();
+    const password = document.getElementById("ciPassword").value;
+    const confirm = document.getElementById("ciConfirmPassword").value;
+
+    if (password !== confirm) {
+      showMsg(msgErr, "As palavras-passe não coincidem.");
+      return;
+    }
+
+    try {
+      await apiRequest("createInitialAdmin", { email, password });
+      showMsg(msgOk, "Administrador criado. A redirecionar...");
+      setTimeout(() => { window.location.href = "index.html"; }, 1200);
+    } catch (error) {
+      showMsg(msgErr, error.message || "Não foi possível criar o administrador.");
+    }
+  });
 
   // Alternar entre login e alterar password
   document.getElementById("btnShowChangePass").addEventListener("click", () => {
