@@ -69,11 +69,23 @@ function writeSecurityLog(string $message) {
     file_put_contents(getSecurityLogPath(), $line, FILE_APPEND);
 }
 
+function getAdminEmail(): string {
+    try {
+        $pdo = getPDO();
+        $email = $pdo->query('SELECT email FROM admin ORDER BY id ASC LIMIT 1')->fetchColumn();
+        return $email ?: DEFAULT_ADMIN_EMAIL;
+    } catch (Exception $e) {
+        return DEFAULT_ADMIN_EMAIL;
+    }
+}
+
 function sendSecurityNotification(string $subject, string $message): bool {
     if (empty(SMTP_PASS)) {
         writeSecurityLog('EMAIL_IGNORADO (SMTP não configurado) | assunto=' . $subject);
         return false;
     }
+
+    $to = getAdminEmail();
 
     try {
         $mail = new PHPMailer(true);
@@ -87,17 +99,17 @@ function sendSecurityNotification(string $subject, string $message): bool {
         $mail->CharSet    = 'UTF-8';
 
         $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
-        $mail->addAddress(DEFAULT_ADMIN_EMAIL);
+        $mail->addAddress($to);
 
         $mail->isHTML(false);
         $mail->Subject = $subject;
         $mail->Body    = $message;
 
         $mail->send();
-        writeSecurityLog('EMAIL_ENVIADO | para=' . DEFAULT_ADMIN_EMAIL . ' | assunto=' . $subject);
+        writeSecurityLog('EMAIL_ENVIADO | para=' . $to . ' | assunto=' . $subject);
         return true;
     } catch (MailException $e) {
-        writeSecurityLog('EMAIL_FALHOU | para=' . DEFAULT_ADMIN_EMAIL . ' | assunto=' . $subject . ' | erro=' . $e->getMessage());
+        writeSecurityLog('EMAIL_FALHOU | para=' . $to . ' | assunto=' . $subject . ' | erro=' . $e->getMessage());
         return false;
     }
 }
@@ -483,12 +495,7 @@ function initializeDatabase(PDO $pdo) {
         FOREIGN KEY(chave_id) REFERENCES chaves(id) ON DELETE CASCADE
     )");
 
-    $stmt = $pdo->prepare('INSERT INTO admin (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)');
-    $stmt->execute([
-        ':email' => DEFAULT_ADMIN_EMAIL,
-        ':password_hash' => password_hash('1111', PASSWORD_DEFAULT),
-        ':created_at' => date('c')
-    ]);
+    // O administrador é criado pela página de login na primeira utilização.
 
     // Tabela de configurações (PIN professor, etc.)
     $pdo->exec("CREATE TABLE IF NOT EXISTS settings (
@@ -502,6 +509,49 @@ function requireAdmin() {
     if (empty($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
         errorResponse('Acesso negado. Faça login como administrador.', 403);
     }
+}
+
+function actionAdminExists() {
+    $pdo = getPDO();
+    $count = (int)$pdo->query('SELECT COUNT(*) FROM admin')->fetchColumn();
+    respond(['success' => true, 'exists' => $count > 0]);
+}
+
+function actionCreateInitialAdmin(array $data) {
+    if (empty($data['email']) || empty($data['password'])) {
+        errorResponse('Email e palavra-passe são obrigatórios.');
+    }
+
+    $email = trim($data['email']);
+    $password = trim($data['password']);
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        errorResponse('Email inválido.');
+    }
+    if (mb_strlen($password) < 4) {
+        errorResponse('A palavra-passe deve ter pelo menos 4 caracteres.');
+    }
+
+    $pdo = getPDO();
+    $count = (int)$pdo->query('SELECT COUNT(*) FROM admin')->fetchColumn();
+    if ($count > 0) {
+        errorResponse('Já existe um administrador. Esta função só está disponível na primeira utilização.', 409);
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO admin (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)');
+    $stmt->execute([
+        ':email' => $email,
+        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+        ':created_at' => date('c')
+    ]);
+
+    session_regenerate_id(true);
+    $_SESSION['admin_logged_in'] = true;
+    $_SESSION['admin_email'] = $email;
+
+    writeSecurityLog('ADMIN_INICIAL_CRIADO | email=' . $email);
+
+    respond(['success' => true, 'email' => $email]);
 }
 
 function actionLoginAdmin(array $data) {
@@ -1131,6 +1181,12 @@ $action = $data['action'] ?? null;
 switch ($action) {
     case 'loginAdmin':
         actionLoginAdmin($data);
+        break;
+    case 'adminExists':
+        actionAdminExists();
+        break;
+    case 'createInitialAdmin':
+        actionCreateInitialAdmin($data);
         break;
     case 'checkAdmin':
         actionCheckAdmin();
