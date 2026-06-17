@@ -4,8 +4,7 @@ Sistema web para gestão e controlo de requisição de chaves numa escola profis
 
 ## Autor
 **Pedro Santos**  
-PAP — 2026  
-
+PAP — 2026
 
 ## Descrição
 Substitui o registo em papel por uma plataforma web acessível via QR Code, com controlo em tempo real de qual chave está em uso, por quem e desde quando. Com a funcionalidade de descarregar o relatório dos usos.

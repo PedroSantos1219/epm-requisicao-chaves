@@ -1063,7 +1063,7 @@ function actionRequestPasswordChange(array $data) {
 
     // Enviar email com o código
     $emailBody = "Olá,\n\n"
-        . "Foi solicitada uma alteração de palavra-passe na plataforma Sistema de Requisições.\n\n"
+        . "Foi solicitada uma alteração de palavra-passe na plataforma de Requisições.\n\n"
         . "O seu código de verificação é: $code\n\n"
         . "Este código expira em 10 minutos.\n\n"
         . "Se não foi você, ignore este email — a sua palavra-passe permanece inalterada.\n\n"
