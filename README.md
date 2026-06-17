@@ -100,16 +100,16 @@ value                                    (UNIQUE index parcial em users.telefone
 4. Abrir `html/index.html` no browser. A base de dados é criada automaticamente na primeira chamada à API.
 5. Fazer login em `html/admin-login.html` com as credenciais default e alterá-las.
 
-## Credenciais default
+## Primeira utilização
 
-Após a primeira execução, são criadas automaticamente:
+A base de dados começa **sem nenhum administrador**. Ao abrir `html/admin-login.html` pela primeira vez, é apresentado um formulário para definires o **email** e a **palavra-passe** do administrador único. Depois disso, esse formulário deixa de aparecer e qualquer acesso ao painel admin passa pelo login normal.
 
-| Conta | Email | Password |
-|---|---|---|
-| **Administrador** | `admin@escola.pt` | `1111` |
-| **PIN Professor** | — | `1111` |
+| Conta | Como é definida |
+|---|---|
+| **Administrador** | Tu defines no primeiro acesso a `admin-login.html` |
+| **PIN Professor** | Default `1111` — alterável no painel admin |
 
-> ⚠️ **Mudar imediatamente após o primeiro login.** O painel admin tem um botão para alterar a password (com confirmação por código no email) e outro para alterar o PIN dos professores.
+> ⚠️ **Altera o PIN dos professores** logo após o primeiro login (painel admin → secção "PIN de Professor").
 
 ## Estrutura de pastas
 
