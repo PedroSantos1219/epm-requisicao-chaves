@@ -3,42 +3,131 @@
 Sistema web para gestão e controlo de requisição de chaves numa escola profissional, desenvolvido como Prova de Aptidão Profissional (PAP).
 
 ## Autor
-**Pedro Santos**  
+**Pedro Santos**
 PAP — 2026
 
-## Descrição
-Substitui o registo em papel por uma plataforma web acessível via QR Code, com controlo em tempo real de qual chave está em uso, por quem e desde quando. Com a funcionalidade de descarregar o relatório dos usos.
+## Contexto
 
-Suporta três tipos de utilizadores:
-- **Aluno** — requisita e devolve chaves com verificação por número de telefone
-- **Professor** — acesso via PIN com lista de professores registados
-- **Administrador** — gestão completa de utilizadores, chaves, backups e configurações
+Na minha escola, o controlo de quem tinha cada chave era feito num caderno na receção. Quando alguém precisava de uma sala, ia ao caderno, escrevia o nome, hora e turma. Quando devolvia, voltava ao caderno para o registar. Tinha problemas óbvios:
+
+- Difícil saber em tempo real que chaves estavam fora
+- Esquecimentos no registo da devolução
+- Letras ilegíveis e dados duplicados
+- Impossível tirar relatórios por período
+- Sem auditoria de quem fez o quê
+
+O sistema substitui o caderno por uma plataforma web acessível por QR Code, com registo automático, controlo em tempo real e relatórios exportáveis.
+
+## Descrição
+
+Três tipos de utilizadores, cada um com fluxo próprio:
+
+- **Aluno** — requisita pelo nome e número de telefone (verificação por apelido, sem necessidade de conta). Devolve introduzindo o mesmo número.
+- **Professor** — entra com PIN partilhado, escolhe-se na lista e requisita.
+- **Administrador** — gere utilizadores, chaves, backups, PIN dos professores e altera password com confirmação por email.
+
+## Screenshots
+
+> _Coloca aqui as imagens das páginas principais quando as tirares:_
+> - `docs/screenshot-home.png` — Página inicial com dashboard
+> - `docs/screenshot-requisitar.png` — Formulário de requisição (aluno)
+> - `docs/screenshot-painel-admin.png` — Painel administrador (offcanvas)
+> - `docs/screenshot-qrcode.png` — QR Code para imprimir e colar nas chaves
 
 ## Tecnologias
-- PHP 8.x + SQLite (PDO)
-- HTML5 + Bootstrap 5 + JavaScript
-- PHPMailer (Gmail SMTP)
-- Apache + .htaccess
+
+- **Backend**: PHP 8.x + SQLite (PDO)
+- **Frontend**: HTML5 + Bootstrap 5 + JavaScript vanilla (sem framework)
+- **Email**: PHPMailer (SMTP Gmail)
+- **Servidor**: Apache + .htaccess
 
 ## Funcionalidades
+
 - Requisição e devolução de chaves em tempo real
-- Dashboard com histórico e filtros por período
-- Sistema de QR Codes para requisição e devolução por chave
-- Backups automáticos da base de dados (retenção de 72h)
+- Dashboard com histórico filtrado por período (24h, 7d, 15d, 30d, 100d)
+- Geração de QR Codes para cada chave (requisição direta por scan)
+- Backups automáticos da BD a cada hora (retenção de 72h)
+- Restauro de backup com preservação automática das credenciais e PIN
 - Exportação de relatórios em TXT
-- Autenticação com proteção brute-force
-- Alteração de password com verificação por email
-- Registo de auditoria de eventos de segurança
+- Autenticação com proteção brute-force (5 tentativas / 15 min de lockout)
+- Alteração de password com confirmação por código de 6 dígitos por email
+- Registo de auditoria de eventos sensíveis (`data/security-events.log`)
 - Interface responsiva (telemóvel, tablet, computador)
+- Página de privacidade e cookies (RGPD)
+- Modo de emergência com sirene
+- Cumprimento de RGPD via política dedicada e dados pessoais minimizados
+
+## Esquema da base de dados
+
+```
+admin                users               chaves              requisicoes
+─────                ─────               ──────              ───────────
+id (PK)              id (PK)             id (PK)             id (PK)
+email (UNIQUE)       nome                codigo              user_id ──► users.id
+password_hash        tipo                nome                chave_id ──► chaves.id
+created_at           turma               restricao           inicio
+                     telefone                                fim
+                     created_at                              estado (ATIVA|DEVOLVIDA)
+                                                             telefone
+settings                                                     ip_address
+────────                                                     created_at
+key (PK)
+value                                    (UNIQUE index parcial em users.telefone WHERE tipo='ALUNO')
+```
+
+## Requisitos
+
+- PHP 8.0+ com extensões:
+  - `pdo_sqlite` (base de dados)
+  - `openssl` (PHPMailer/STARTTLS)
+  - `mbstring` (manipulação de strings UTF-8)
+  - `iconv` (normalização de nomes com acentos)
+- Apache com `mod_rewrite` e suporte a `.htaccess`
+- Conta Gmail com **App Password** ativa (para envio de notificações por SMTP)
 
 ## Instalação
-1. Clonar o repositório
-2. Copiar `config.example.php` para `config.php` e preencher as credenciais SMTP do seu email
-3. Colocar os ficheiros em servidor (Apache) com PHP 8.x e extensão PDO SQLite
-4. Garantir permissões de escrita na pasta `data/`
-5. Aceder a `html/index.html`  a base de dados é criada automaticamente
+
+1. Clonar o repositório para a pasta servida pelo Apache:
+   ```
+   git clone <url> requisicao
+   ```
+2. Copiar `config.example.php` para `config.php` e preencher com a tua conta SMTP (Gmail):
+   ```
+   SMTP_USER  → o teu email
+   SMTP_PASS  → App Password (16 caracteres, sem espaços)
+   ```
+3. Garantir permissões de escrita em `data/` e `data/backups/`
+4. Abrir `html/index.html` no browser. A base de dados é criada automaticamente na primeira chamada à API.
+5. Fazer login em `html/admin-login.html` com as credenciais default e alterá-las.
+
+## Credenciais default
+
+Após a primeira execução, são criadas automaticamente:
+
+| Conta | Email | Password |
+|---|---|---|
+| **Administrador** | `admin@escola.pt` | `1111` |
+| **PIN Professor** | — | `1111` |
+
+> ⚠️ **Mudar imediatamente após o primeiro login.** O painel admin tem um botão para alterar a password (com confirmação por código no email) e outro para alterar o PIN dos professores.
+
+## Estrutura de pastas
+
+```
+.
+├── api.php                 # Backend único (dispatcher + 27 endpoints)
+├── seed_alunos.php         # Importação inicial de alunos (Excel/Forms)
+├── config.example.php      # Template das credenciais SMTP
+├── assets/                 # Imagens, áudio, logótipo
+├── css/                    # Estilos por página
+├── data/                   # BD SQLite + backups + log (gitignored)
+├── html/                   # Páginas: index, requisitar, devolver, admin, etc.
+├── js/                     # api.js (cliente), app.js (UI), requisicao.js
+└── vendor/phpmailer/       # Biblioteca PHPMailer
+```
 
 ## Licença
+
 Copyright © 2026 Pedro Santos. Todos os direitos reservados.
 
 Este projeto foi desenvolvido no âmbito de uma Prova de Aptidão Profissional e é propriedade intelectual do autor. Não é permitida a reprodução, distribuição ou utilização comercial sem autorização expressa.
