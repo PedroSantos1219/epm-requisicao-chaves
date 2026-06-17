@@ -128,6 +128,8 @@ Após a primeira execução, são criadas automaticamente:
 
 ## Licença
 
-Copyright © 2026 Pedro Santos. Todos os direitos reservados.
+MIT License — Copyright © 2026 Pedro Santos
 
-Este projeto foi desenvolvido no âmbito de uma Prova de Aptidão Profissional e é propriedade intelectual do autor. Não é permitida a reprodução, distribuição ou utilização comercial sem autorização expressa.
+Software livre. Podes usar, copiar, modificar e distribuir, comercialmente ou não, desde que mantenhas o aviso de copyright. Ver [LICENSE](LICENSE) para os detalhes.
+
+Originalmente desenvolvido como Prova de Aptidão Profissional (PAP).

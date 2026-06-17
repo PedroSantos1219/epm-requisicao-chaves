@@ -3,7 +3,7 @@
  * @author  Pedro Santos
  * @year    2026
  * @project Prova de Aptidão Profissional (PAP)
- * @license Todos os direitos reservados
+ * @license MIT
  */
 
 async function apiRequest(action, payload = {}) {

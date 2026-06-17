@@ -3,7 +3,7 @@
  * @author  Pedro Santos
  * @year    2026
  * @project Prova de Aptidão Profissional (PAP)
- * @license Todososdireitosreservados
+ * @license MIT
  */
 
 const modeBadge = document.getElementById("modeBadge");
