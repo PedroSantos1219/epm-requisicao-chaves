@@ -28,11 +28,11 @@ Três tipos de utilizadores, cada um com fluxo próprio:
 
 ## Screenshots
 
-> _Coloca aqui as imagens das páginas principais quando as tirares:_
-> - `docs/screenshot-home.png` — Página inicial com dashboard
-> - `docs/screenshot-requisitar.png` — Formulário de requisição (aluno)
-> - `docs/screenshot-painel-admin.png` — Painel administrador (offcanvas)
-> - `docs/screenshot-qrcode.png` — QR Code para imprimir e colar nas chaves
+### Dashboard
+![Dashboard](assets/DASHBOARD.png)
+
+### Página de Privacidade e Cookies (RGPD)
+![Privacidade](assets/PAG-DIREITOSPRIV.png)
 
 ## Tecnologias
 
