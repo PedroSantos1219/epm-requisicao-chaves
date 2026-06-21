@@ -87,18 +87,19 @@ value                                    (UNIQUE index parcial em users.telefone
 
 ## Instalação
 
-1. Clonar o repositório para a pasta servida pelo Apache:
-   ```
-   git clone <url> requisicao
-   ```
-2. Copiar `config.example.php` para `config.php` e preencher com a tua conta SMTP (Gmail):
+1. Colocar o projeto na pasta servida pelo Apache (`C:\xampp\htdocs\` no XAMPP, ou equivalente).
+   - Se vier de Git: `git clone <url> requisicao`
+   - Se vier de ZIP: extrair o ZIP para essa pasta.
+2. (Opcional — só para emails) Editar `config.php` e preencher com a tua conta SMTP:  
    ```
    SMTP_USER  → o teu email
-   SMTP_PASS  → App Password (16 caracteres, sem espaços)
+   SMTP_PASS  → App Password do Gmail (16 caracteres)
    ```
-3. Garantir permissões de escrita em `data/` e `data/backups/`
-4. Abrir `html/index.html` no browser. A base de dados é criada automaticamente na primeira chamada à API.
-5. Fazer login em `html/admin-login.html` com as credenciais default e alterá-las.
+   Sem isto, o sistema funciona na mesma — apenas não envia notificações por email.
+3. Garantir que a pasta `data/` tem permissões de escrita (Apache precisa disto para criar a base de dados SQLite).
+4. Iniciar o Apache e abrir no browser:
+   `http://localhost/<pasta-do-projeto>/html/index.html`
+5. Clicar em **"Administração"** — na primeira utilização aparece um formulário para criares o email e palavra-passe do administrador único.
 
 ## Primeira utilização
 
