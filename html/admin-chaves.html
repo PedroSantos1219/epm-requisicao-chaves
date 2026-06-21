@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/png" href="../assets/logo.png" />
+  <title>Gestão de Chaves — Administrador</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <link rel="stylesheet" href="../css/main.css?v=6" />
+  <link rel="stylesheet" href="../css/responsive.css?v=6" />
+  <link rel="stylesheet" href="../css/admin-chaves.css?v=1" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="index.html" class="brand">
+      <img src="../assets/logo.png" alt="Logótipo" class="logo-img" width="40" height="40">
+      Requisição de Chaves
+    </a>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-success" href="index.html">Voltar à Dashboard</a>
+      <button class="btn btn-outline-danger" id="btnSair">Sair</button>
+    </div>
+  </div>
+</header>
+
+<main class="container chaves-main">
+
+  <div id="msgOk" class="alert alert-success" style="display:none"></div>
+  <div id="msgErr" class="alert alert-danger" style="display:none"></div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="m-0">Gestão de Chaves</h4>
+    <button class="btn btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#addChaveForm">
+      + Adicionar Chave
+    </button>
+  </div>
+
+  <!-- Adicionar -->
+  <div class="collapse mb-3" id="addChaveForm">
+    <div class="card">
+      <form id="formAddChave" class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Código</label>
+          <input type="text" class="form-control" id="addCodigo" placeholder="Ex: SALA-12" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Nome</label>
+          <input type="text" class="form-control" id="addNome" placeholder="Ex: Sala 12" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Restrição</label>
+          <select class="form-select" id="addRestricao" required>
+            <option value="ALUNO">ALUNO</option>
+            <option value="PROFESSOR" selected>PROFESSOR</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-dark">Gravar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pesquisar e contagem -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-6">
+      <input type="text" id="filtroChave" class="form-control" placeholder="Pesquisar por código ou nome...">
+    </div>
+    <div class="col-md-6 text-md-end small text-muted align-self-center" id="contadores"></div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle m-0" id="tblChaves">
+        <thead class="table-light">
+          <tr>
+            <th>Código</th>
+            <th>Nome</th>
+            <th>Restrição</th>
+            <th>Estado</th>
+            <th>Em uso por</th>
+            <th class="text-end">Ação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="muted small mt-3">
+    Aqui geres exclusivamente as chaves. Para ver requisições históricas, exportar relatórios ou gerir utilizadores volta à <a href="index.html">dashboard</a>.
+  </p>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <small>Direitos reservados &copy; 2026 - PAP Pedro Santos | <a href="privacidade.html">Privacidade & Cookies</a></small>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p"
+        crossorigin="anonymous"></script>
+<script src="../js/api.js?v=6"></script>
+<script>
+  const msgOk = document.getElementById('msgOk');
+  const msgErr = document.getElementById('msgErr');
+  const tbody = document.querySelector('#tblChaves tbody');
+  const filtro = document.getElementById('filtroChave');
+  const contadores = document.getElementById('contadores');
+  let chavesCache = [];
+  let usoCache = {}; // chave_id -> requisicao ativa
+
+  function showMsg(el, txt) {
+    el.textContent = txt;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
+  async function ensureAdmin() {
+    try {
+      const res = await apiCheckAdmin();
+      if (!res.isAdmin) { window.location.href = 'admin-login.html'; }
+    } catch (_) {
+      window.location.href = 'admin-login.html';
+    }
+  }
+
+  async function refresh() {
+    try {
+      const [chavesRes, reqsRes] = await Promise.all([
+        apiListChaves(),
+        apiListRequisicoes('100d') // qualquer ativa
+      ]);
+      chavesCache = chavesRes.chaves || [];
+      usoCache = {};
+      for (const r of (reqsRes.requisicoes || [])) {
+        if (r.estado === 'ATIVA') usoCache[String(r.chave_id)] = r;
+      }
+      render();
+    } catch (e) {
+      showMsg(msgErr, e.message || 'Erro a carregar chaves.');
+    }
+  }
+
+  function render() {
+    const termo = (filtro.value || '').trim().toLowerCase();
+    const lista = chavesCache.filter((c) => {
+      if (!termo) return true;
+      return String(c.codigo).toLowerCase().includes(termo) ||
+             String(c.nome).toLowerCase().includes(termo);
+    });
+
+    let emUso = 0;
+    tbody.innerHTML = '';
+    for (const c of lista) {
+      const req = usoCache[String(c.id)];
+      const livre = !req;
+      if (!livre) emUso++;
+
+      const tr = document.createElement('tr');
+      const tipoBadge = c.restricao === 'PROFESSOR' ? 'bg-primary' : 'bg-success';
+      const estadoBadge = livre ? 'bg-success' : 'bg-warning text-dark';
+      const estadoTxt = livre ? 'Livre' : 'Em uso';
+      const usuarioTxt = livre
+        ? '<span class="text-muted">—</span>'
+        : `<strong>${escapeHtml(req.user_nome || '—')}</strong>` +
+          (req.user_turma ? ` <small class="text-muted">(${escapeHtml(req.user_turma)})</small>` : '') +
+          `<br><small class="text-muted">desde ${formatDatePT(req.inicio)}</small>`;
+
+      const acoes = livre
+        ? `<button class="btn btn-sm btn-outline-danger" data-action="remover" data-id="${c.id}" data-codigo="${escapeHtml(c.codigo)}">Eliminar</button>`
+        : `<button class="btn btn-sm btn-warning" data-action="parar" data-req="${req.id}" data-codigo="${escapeHtml(c.codigo)}">Parar utilização</button>`;
+
+      tr.innerHTML = `
+        <td><code>${escapeHtml(c.codigo)}</code></td>
+        <td>${escapeHtml(c.nome)}</td>
+        <td><span class="badge ${tipoBadge}">${escapeHtml(c.restricao)}</span></td>
+        <td><span class="badge ${estadoBadge}">${estadoTxt}</span></td>
+        <td>${usuarioTxt}</td>
+        <td class="text-end">${acoes}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    contadores.textContent = `${lista.length} chave${lista.length === 1 ? '' : 's'} listada${lista.length === 1 ? '' : 's'} · ${emUso} em uso`;
+  }
+
+  filtro.addEventListener('input', render);
+
+  tbody.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const codigo = btn.dataset.codigo || '';
+
+    if (action === 'remover') {
+      if (!confirm(`Eliminar a chave ${codigo}?\nEsta ação não pode ser revertida.`)) return;
+      try {
+        await apiDeleteChave(parseInt(btn.dataset.id, 10));
+        showMsg(msgOk, `Chave ${codigo} eliminada.`);
+        refresh();
+      } catch (err) {
+        showMsg(msgErr, err.message || 'Não foi possível eliminar.');
+      }
+    } else if (action === 'parar') {
+      if (!confirm(`Forçar a devolução da chave ${codigo}?\nA pessoa que a tem deixará de a ter registada.`)) return;
+      try {
+        await apiAdminDevolverRequisicao(parseInt(btn.dataset.req, 10));
+        showMsg(msgOk, `Utilização da chave ${codigo} terminada.`);
+        refresh();
+      } catch (err) {
+        showMsg(msgErr, err.message || 'Não foi possível parar a utilização.');
+      }
+    }
+  });
+
+  document.getElementById('formAddChave').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const codigo = document.getElementById('addCodigo').value.trim();
+    const nome = document.getElementById('addNome').value.trim();
+    const restricao = document.getElementById('addRestricao').value;
+    try {
+      await apiAddChave(codigo, nome, restricao);
+      showMsg(msgOk, `Chave ${codigo} adicionada.`);
+      e.target.reset();
+      document.getElementById('addRestricao').value = 'PROFESSOR';
+      bootstrap.Collapse.getOrCreateInstance(document.getElementById('addChaveForm')).hide();
+      refresh();
+    } catch (err) {
+      showMsg(msgErr, err.message || 'Não foi possível adicionar.');
+    }
+  });
+
+  document.getElementById('btnSair').addEventListener('click', async () => {
+    try { await apiLogoutAdmin(); } catch (_) {}
+    window.location.href = 'index.html';
+  });
+
+  ensureAdmin().then(refresh);
+</script>
+</body>
+</html>

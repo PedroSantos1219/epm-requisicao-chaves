@@ -1,0 +1,40 @@
+.chaves-main {
+  padding-top: 1.5rem;
+  padding-bottom: 4rem;
+}
+
+.chaves-main code {
+  font-size: 0.9rem;
+  background: #f4f4f5;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  color: #212529;
+}
+
+.chaves-main .badge {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+#tblChaves tbody tr {
+  vertical-align: middle;
+}
+
+#tblChaves td small {
+  display: inline-block;
+}
+
+.chaves-main .card {
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+#filtroChave {
+  max-width: 100%;
+}
+
+@media (max-width: 576px) {
+  .chaves-main .badge { font-size: 0.7rem; }
+  #tblChaves { font-size: 0.875rem; }
+}
