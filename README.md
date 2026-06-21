@@ -44,7 +44,7 @@ Três tipos de utilizadores, cada um com fluxo próprio:
 ## Funcionalidades
 
 - Requisição e devolução de chaves em tempo real
-- Dashboard com histórico filtrado por período (24h, 7d, 15d, 30d, 100d)
+- Dashboard com histórico filtrado por período (24h, 1 semana, 15 dias, 1 mês)
 - Geração de QR Codes para cada chave (requisição direta por scan)
 - Backups automáticos da BD a cada hora (retenção de 72h)
 - Restauro de backup com preservação automática das credenciais e PIN
